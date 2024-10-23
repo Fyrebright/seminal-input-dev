@@ -12,6 +12,16 @@ find_package(LLVM REQUIRED CONFIG)
 # `add_llvm_pass_plugin`.
 include(AddLLVM)
 
+# Check the LLVM config
+include(CMakePrintHelpers)
+
+message(STATUS "Values read from LLVM config:")
+list(APPEND CMAKE_MESSAGE_INDENT "\t")
+cmake_print_variables(LLVM_INCLUDE_DIRS)
+cmake_print_variables(LLVM_DEFINITIONS)
+cmake_print_variables(LLVM_LIBRARY_DIRS)
+list(POP_BACK CMAKE_MESSAGE_INDENT)
+
 # Use LLVM's preprocessor definitions, include directories, and library search
 # paths.
 add_definitions(${LLVM_DEFINITIONS})
@@ -20,8 +30,4 @@ link_directories(${LLVM_LIBRARY_DIRS})
 
 # Our pass lives in this subdirectory.
 add_subdirectory(skeleton)
-# add_subdirectory(branch-ptr-trace)
-
-include_directories(${HOME}/.local/include)
-
-set (CMAKE_CXX_STANDARD 17)
+add_subdirectory(branch-ptr-trace)

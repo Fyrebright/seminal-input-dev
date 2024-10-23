@@ -37,7 +37,7 @@ From repository root:
 
 ```sh
 cmake -B build/
-make -C build/
+cmake --build build/
 ```
 
 ### Running Passes
