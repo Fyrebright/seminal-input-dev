@@ -33,13 +33,12 @@ TODO
 
 ### Building Passes
 
-Build:
+From repository root:
 
-    mkdir build
-    cd build
-    cmake ..
-    make
-    cd ..
+```sh
+cmake -B build/
+make -C build/
+```
 
 ### Running Passes
 
