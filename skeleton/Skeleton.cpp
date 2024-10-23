@@ -1,9 +1,7 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/SVals.h"
-
 #include "llvm/Analysis/LoopInfo.h"
 #include "llvm/Analysis/ScalarEvolution.h"
 #include "llvm/Analysis/TargetLibraryInfo.h"
-
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/Function.h"
@@ -13,11 +11,9 @@
 #include "llvm/IR/Module.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/IR/User.h"
-
 #include "llvm/Pass.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
-
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -31,7 +27,7 @@ using namespace std;
 
 istream &GotoLine(istream &file, unsigned int num) {
   file.seekg(ios::beg);
-  for (int i = 0; i < num - 1; ++i) {
+  for(int i = 0; i < num - 1; ++i) {
     file.ignore(numeric_limits<streamsize>::max(), '\n');
   }
   return file;
@@ -40,7 +36,7 @@ istream &GotoLine(istream &file, unsigned int num) {
 namespace {
 struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
   void printInstructionSrc(Instruction &I) {
-    if (DILocation *Loc = I.getDebugLoc()) {
+    if(DILocation *Loc = I.getDebugLoc()) {
       unsigned Line = Loc->getLine();
       StringRef File = Loc->getFilename();
       StringRef Dir = Loc->getDirectory();
@@ -60,11 +56,11 @@ struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
 
   void funcLoopPrint(Function &F, LoopInfo &LI, ScalarEvolution &SE) {
 
-    for (Loop *L : LI) {
+    for(Loop *L: LI) {
 
       errs() << "Is canonical??  " << L->isCanonical(SE);
 
-      if (auto LB = L->getBounds(SE)) {
+      if(auto LB = L->getBounds(SE)) {
         errs() << "Loop Bounds!!!\n";
         errs() << "\t"
                << "getInitialIVValue" << LB->getInitialIVValue().getName()
@@ -77,7 +73,7 @@ struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
         // << LB->getDirection() << "\n";
       }
 
-      if (L->getLoopLatch()) {
+      if(L->getLoopLatch()) {
         BasicBlock *BB = L->getLoopLatch();
         errs() << "\n---\nLoop Latch:\n";
         // if(BB->getSinglePredecessor()){
@@ -86,7 +82,7 @@ struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
         // }
         // BB->print(errs());
 
-        for (auto &I : *BB) {
+        for(auto &I: *BB) {
           // I.print(errs());
           // errs() << "Instruction: \n";
           // if (llvm::isa<llvm::BranchInst>(I)) {
@@ -104,8 +100,8 @@ struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
   }
 
   void funcDefUse(Function &F) {
-    for (User *U : F.users()) {
-      if (Instruction *I = dyn_cast<Instruction>(U)) {
+    for(User *U: F.users()) {
+      if(Instruction *I = dyn_cast<Instruction>(U)) {
         errs() << "F is used in instruction:\n";
         errs() << *I << "\n";
       }
@@ -114,8 +110,8 @@ struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
 
   void funcAllOpCodes(Function &F) {
     string output;
-    for (auto &B : F) {
-      for (auto &I : B) {
+    for(auto &B: F) {
+      for(auto &I: B) {
         output += (I.getOpcodeName());
         output += '\n';
       }
@@ -124,14 +120,14 @@ struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
   }
 
   void funcBranches(Function &F) {
-    for (auto &B : F) {
+    for(auto &B: F) {
       // errs() << "\n---\nBasic block:\n";
       // B.print(errs());
 
-      for (auto &I : B) {
+      for(auto &I: B) {
         // I.print(errs());
         // errs() << "Instruction: \n";
-        if (llvm::isa<llvm::BranchInst>(I)) {
+        if(llvm::isa<llvm::BranchInst>(I)) {
           errs() << "BranchInst: \n";
           I.print(errs(), true);
           printInstructionSrc(I);
@@ -142,11 +138,11 @@ struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
   }
 
   void funcTerminator(Function &F) {
-    for (auto &B : F) {
+    for(auto &B: F) {
       errs() << "\n---\nBasic block:\n";
       // B.print(errs());
 
-      if (B.getTerminator())
+      if(B.getTerminator())
         errs() << "Terminator " << B.getTerminator()->getName() << "!\n";
       else
         B.print(errs());
@@ -163,18 +159,18 @@ struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
         MAM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
 
     LibFunc _;
-    for (auto &F : M.functions()) {
+    for(auto &F: M.functions()) {
       const TargetLibraryInfo &TLI = FAM.getResult<TargetLibraryAnalysis>(F);
       // const TargetLibraryInfo *TLI;
 
       // Skip debug functions
-      if (F.isIntrinsic()) {
+      if(F.isIntrinsic()) {
         errs() << "SKIPPED: " << F.getName() << "\n";
         continue;
       }
 
       // rand causes crash every time...
-      if (F.getName() == "rand") {
+      if(F.getName() == "rand") {
         errs() << "SKIPPED: " << F.getName() << "\n";
         continue;
       }
@@ -182,7 +178,7 @@ struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
       errs() << "In a function called " << F.getName() << "!\n";
 
       // Skip library functions
-      if (TLI.getLibFunc(F.getName(), _)) {
+      if(TLI.getLibFunc(F.getName(), _)) {
         errs() << "SKIPPED: " << F.getName() << "\n";
       } else {
         LoopInfo &LI = FAM.getResult<LoopAnalysis>(F);

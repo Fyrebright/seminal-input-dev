@@ -7,12 +7,12 @@ int main() {
   FILE *fp = fopen("file.txt", "r");
   char c;
   int len = 0;
-  while (1) {
+  while(1) {
     c = getc(fp);
-    if (c == EOF)
+    if(c == EOF)
       break;
     str1[len++] = c;
-    if (len >= 1000)
+    if(len >= 1000)
       break;
   }
   printf("%s\n", str1);
