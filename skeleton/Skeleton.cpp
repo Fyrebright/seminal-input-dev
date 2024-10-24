@@ -37,10 +37,10 @@ namespace {
 struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
   void printInstructionSrc(Instruction &I) {
     if(DILocation *Loc = I.getDebugLoc()) {
-      unsigned Line = Loc->getLine();
-      StringRef File = Loc->getFilename();
-      StringRef Dir = Loc->getDirectory();
-      bool ImplicitCode = Loc->isImplicitCode();
+      unsigned Line = Loc->getLine();errs() << "40,";
+      StringRef File = Loc->getFilename();errs() << "41,";
+      StringRef Dir = Loc->getDirectory();errs() << "42,";
+      bool ImplicitCode = Loc->isImplicitCode();errs() << "43,";
 
       ifstream srcFile(filesystem::canonical((Dir + "/" + File).str()),
                        ios::in);
@@ -158,7 +158,7 @@ struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
     FunctionAnalysisManager &FAM =
         MAM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
 
-    LibFunc _;
+    LibFunc libF;
     for(auto &F: M.functions()) {
       const TargetLibraryInfo &TLI = FAM.getResult<TargetLibraryAnalysis>(F);
       // const TargetLibraryInfo *TLI;
@@ -171,6 +171,15 @@ struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
 
       // rand causes crash every time...
       if(F.getName() == "rand") {
+        errs() << "Lets try rand... (";
+
+        int isLib = TLI.getLibFunc(F.getName(), libF);
+        if(!isLib) 
+          errs() << "WTF!!";
+        errs() << TLI.getLibFunc(F.getName(), libF);
+
+        errs() << ") SURVIVED??\n";
+        
         errs() << "SKIPPED: " << F.getName() << "\n";
         continue;
       }
@@ -178,7 +187,8 @@ struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
       errs() << "In a function called " << F.getName() << "!\n";
 
       // Skip library functions
-      if(TLI.getLibFunc(F.getName(), _)) {
+      bool isLib = TLI.getLibFunc(F.getName(), libF);
+      if(isLib) {
         errs() << "SKIPPED: " << F.getName() << "\n";
       } else {
         LoopInfo &LI = FAM.getResult<LoopAnalysis>(F);
