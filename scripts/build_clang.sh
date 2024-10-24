@@ -1,7 +1,8 @@
-export CLANG_BUILDDIR=$LLVM_BUILDDIR/../clang-build
-
 mkdir $CLANG_BUILDDIR
 cd $CLANG_BUILDDIR
+
+export CC=clang
+export CXX=clang++
 
 cmake -G "Ninja" \
     -S $LLVM_SRC/clang \
@@ -13,7 +14,7 @@ cmake -G "Ninja" \
     -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
 # Build
-cmake --build .
+cmake --build . #-j4
 
 # Install to $LLVM_HOME
-cmake --build . --target install
+#cmake --build . --target install
