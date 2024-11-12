@@ -4,3 +4,4 @@
 *.ll
 *.bc
 a.out
+*.dot
