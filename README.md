@@ -43,5 +43,6 @@ cmake --build build/
 #### With `clang`
 
 ```sh
-clang -g -O0 -fpass-plugin=branch-ptr-trace/PrintBranchPass.so examples/hello.c -o /tmp/a.out
+clang -g -O0 -fpass-plugin=build/branch-ptr-trace/PrintBranchPass.so examples/hello.c -o /tmp/a.out
+clang -g -O0 -fno-discard-value-names -fpass-plugin=build/branch-ptr-trace/PrintBranchPass.so examples/example2-1.c -o /tmp/a.out
 ```

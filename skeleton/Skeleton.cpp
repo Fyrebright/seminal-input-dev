@@ -37,10 +37,29 @@ namespace {
 struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
   void printInstructionSrc(Instruction &I) {
     if(DILocation *Loc = I.getDebugLoc()) {
-      unsigned Line = Loc->getLine();errs() << "40,";
-      StringRef File = Loc->getFilename();errs() << "41,";
-      StringRef Dir = Loc->getDirectory();errs() << "42,";
-      bool ImplicitCode = Loc->isImplicitCode();errs() << "43,";
+      unsigned Line = Loc->getLine();
+      StringRef File = Loc->getFilename();
+      StringRef Dir = Loc->getDirectory();
+      // bool ImplicitCode = Loc->isImplicitCode();
+
+      ifstream srcFile(filesystem::canonical((Dir + "/" + File).str()),
+                       ios::in);
+
+      GotoLine(srcFile, Line);
+      string line;
+      getline(srcFile, line);
+      errs() << "\nLine " << Line << " source: " << line;
+
+      srcFile.close();
+    }
+  }
+
+  void printInstructionSrc(Instruction *I) {
+    if(DILocation *Loc = I->getDebugLoc()) {
+      unsigned Line = Loc->getLine();
+      StringRef File = Loc->getFilename();
+      StringRef Dir = Loc->getDirectory();
+      // bool ImplicitCode = Loc->isImplicitCode();
 
       ifstream srcFile(filesystem::canonical((Dir + "/" + File).str()),
                        ios::in);
@@ -58,20 +77,35 @@ struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
 
     for(Loop *L: LI) {
 
-      errs() << "Is canonical??  " << L->isCanonical(SE);
+      BasicBlock *ExitingBB = L->getExitingBlock();
+      // Assumed only one exiting block.
+      if(!ExitingBB)
+        return;
 
-      if(auto LB = L->getBounds(SE)) {
-        errs() << "Loop Bounds!!!\n";
-        errs() << "\t"
-               << "getInitialIVValue" << LB->getInitialIVValue().getName()
-               << "\n";
+      BranchInst *ExitingBI = dyn_cast<BranchInst>(ExitingBB->getTerminator());
+      if(ExitingBI){
+        printInstructionSrc(ExitingBI);
+        errs() << " <--- exiting condition\n";
+        // errs() << "" << ExitingBI->getCondition()->getName() << "\n";
+        errs() << "" << ExitingBI->getNumOperands() << "\n";
+        errs() << "" << ExitingBI->getOperand(0) << "\n";
+      }
+      return;
+
+      // errs() << "Is canonical??  " << L->isCanonical(SE);
+
+      // if(auto LB = L->getBounds(SE)) {
+      //   errs() << "Loop Bounds!!!\n";
+      //   errs() << "\t"
+      //          << "getInitialIVValue" << LB->getInitialIVValue().getName()
+      //          << "\n";
         // errs() << "\t" << "getStepInst" << LB->getStepInst() << "\n";
         // errs() << "\t" << "getStepValue" << LB->getStepValue() << "\n";
         // errs() << "\t" << "getFinalIVValue" << LB->getFinalIVValue() << "\n";
         // errs() << "\t" << "getCanonicalPredicate" <<
         // LB->getCanonicalPredicate() << "\n"; errs() << "\t" << "getDirection"
         // << LB->getDirection() << "\n";
-      }
+      // }
 
       if(L->getLoopLatch()) {
         BasicBlock *BB = L->getLoopLatch();
@@ -165,31 +199,31 @@ struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
 
       // Skip debug functions
       if(F.isIntrinsic()) {
-        errs() << "SKIPPED: " << F.getName() << "\n";
+        //errs() << "SKIPPED: " << F.getName() << "\n";
         continue;
       }
 
       // rand causes crash every time...
-      if(F.getName() == "rand") {
-        errs() << "Lets try rand... (";
+      if(F.getName() == "rand" | F.getName() == "srand") {
+        //errs() << "Lets try rand... (";
 
         int isLib = TLI.getLibFunc(F.getName(), libF);
-        if(!isLib) 
-          errs() << "WTF!!";
-        errs() << TLI.getLibFunc(F.getName(), libF);
+        if(!isLib)
+          //errs() << "WTF!!";
+        //errs() << TLI.getLibFunc(F.getName(), libF);
 
-        errs() << ") SURVIVED??\n";
-        
-        errs() << "SKIPPED: " << F.getName() << "\n";
+        //errs() << ") SURVIVED??\n";
+
+        //errs() << "SKIPPED: " << F.getName() << "\n";
         continue;
       }
 
-      errs() << "In a function called " << F.getName() << "!\n";
+      //errs() << "In a function called " << F.getName() << "!\n";
 
       // Skip library functions
       bool isLib = TLI.getLibFunc(F.getName(), libF);
       if(isLib) {
-        errs() << "SKIPPED: " << F.getName() << "\n";
+        //errs() << "SKIPPED: " << F.getName() << "\n";
       } else {
         LoopInfo &LI = FAM.getResult<LoopAnalysis>(F);
         ScalarEvolution &SE = FAM.getResult<ScalarEvolutionAnalysis>(F);
@@ -199,7 +233,7 @@ struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
         funcLoopPrint(F, LI, SE);
       }
 
-      errs() << "I saw a function called " << F.getName() << "!\n";
+      //errs() << "I saw a function called " << F.getName() << "!\n";
     }
 
     return PreservedAnalyses::all();
