@@ -3,6 +3,7 @@
 
 int calc() {
     int a = (getchar() - '0');
+    // int a = getchar();
 
     int b = a;
 

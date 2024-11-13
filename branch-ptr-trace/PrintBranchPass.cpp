@@ -74,8 +74,9 @@ void printInstructionSrc(Instruction &I) {
     GotoLine(srcFile, Line);
     std::string line;
     getline(srcFile, line);
-    errs() << "Line " << Line << " source: " << line << "(" << I.getOpcodeName()
-          //  << "," << I.getOperand(1)->getName() 
+    errs() << "Line " << Line << " source: " << line << "("
+           << I.getOpcodeName()
+           //  << "," << I.getOperand(1)->getName()
            << ")\n";
 
     srcFile.close();
@@ -99,17 +100,17 @@ void printUseDef(Instruction &I) {
 }
 
 void printDefUse(Value &V) {
-  for (User *U : V.users()) {
-    if (Instruction *I = dyn_cast_if_present<Instruction>(U)) {
+  for(User *U: V.users()) {
+    if(Instruction *I = dyn_cast_if_present<Instruction>(U)) {
       printInstructionSrc(*I);
     }
-    if (isa<ICmpInst>(U) || isa<BranchInst>(U)) {
+    if(isa<ICmpInst>(U) || isa<BranchInst>(U)) {
       errs() << "FOUND A SPOT WOW-------\n";
       // return;
     }
 
     // Recurse
-    if (auto V_prime = dyn_cast<Value>(U)) {
+    if(auto V_prime = dyn_cast<Value>(U)) {
       printDefUse(*V_prime);
     }
   }
@@ -159,7 +160,7 @@ std::vector<Value *> inputValues(CallInst &I, StringRef name) {
 
   // Finally, add retval
   if(auto retval = dyn_cast_if_present<Value>(&I)) {
-    vals.push_back(retval); //TODO: possibly need
+    vals.push_back(retval); // TODO: possibly need
 
     // errs() << "\n";
     for(auto U: I.users()) {
@@ -279,8 +280,7 @@ struct KeyPointVisitor : public InstVisitor<KeyPointVisitor> {
           errs() << val->getName() << ",";
           printDefUse(*val);
 
-
-          //TODO: find if input vals dominate branches (2 stage pass?)
+          // TODO: find if input vals dominate branches (2 stage pass?)
         }
         errs() << "\n";
       }

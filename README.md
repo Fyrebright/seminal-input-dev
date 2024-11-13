@@ -46,3 +46,8 @@ cmake --build build/
 clang -g -O0 -fpass-plugin=build/branch-ptr-trace/PrintBranchPass.so examples/hello.c -o /tmp/a.out
 clang -g -O0 -fno-discard-value-names -fpass-plugin=build/branch-ptr-trace/PrintBranchPass.so examples/example2-1.c -o /tmp/a.out
 ```
+
+```
+clang -g -O0 -Xclang -disable-O0-optnone examples/assign_chain.c -fno-discard-value-names -emit-llvm -S 
+opt -load-pass-plugin=build/key-pts/FindInputVals.so -passes='function(mem2reg),print<input-vals>' assign_chain.ll -disable-output -debug-pass-manager
+```
