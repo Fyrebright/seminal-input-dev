@@ -4,12 +4,14 @@
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/PassManager.h"
+#include "llvm/IR/Value.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/InstructionCost.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -94,11 +96,11 @@ bool printDefUse(raw_ostream &OutS, Value &V) {
       printInstructionSrc(OutS, *I);
       // OutS << "\t";
       return true;
-    // } else if(auto SI = dyn_cast<StoreInst>(U)) {
-    //   errs() << "boi";
-    //   errs() << SI->getPointerOperand()->getName();
-    //   // printDefUse(OutS, *SI->getValueOperand());
-    } else {//if(auto *I = dyn_cast<Instruction>(U)) {
+      // } else if(auto SI = dyn_cast<StoreInst>(U)) {
+      //   errs() << "boi";
+      //   errs() << SI->getPointerOperand()->getName();
+      //   // printDefUse(OutS, *SI->getValueOperand());
+    } else { // if(auto *I = dyn_cast<Instruction>(U)) {
       printInstructionSrc(OutS, *cast<Instruction>(U));
       OutS << "\t";
     }
@@ -106,10 +108,10 @@ bool printDefUse(raw_ostream &OutS, Value &V) {
     // Recurse
     // printDefUse(OutS, *U);
 
-      if(printDefUse(OutS, *U)) {
-        return true;
-      }
-    
+    if(printDefUse(OutS, *U)) {
+      return true;
+    }
+
     // if(auto V_prime = dyn_cast<Value>(U)) {
     //   OutS << "--> ";
     //   if(printDefUse(OutS, *V_prime)) {
@@ -144,6 +146,28 @@ struct InputCallVisitor : public InstVisitor<InputCallVisitor> {
   }
 };
 
+bool usesInputVal(Instruction &I, std::vector<Value *> &inputValues) {
+  for(Use &U: I.operands()) {
+    if(auto V = dyn_cast<Value>(U)) {
+      // Check if in input values
+      if(std::find(inputValues.cbegin(), inputValues.cend(), V) !=
+         inputValues.cend()) {
+        errs() << "FOUNDIT";
+        printInstructionSrc(errs(), cast<Instruction>(*U));
+        return true;
+      } else if(auto uI = dyn_cast<Instruction>(U)) {
+        errs() << "sadge:";
+        printInstructionSrc(errs(), *uI);
+        if(usesInputVal(*uI, inputValues)) {
+          return true;
+        }
+      }
+    }
+  }
+
+  return false;
+}
+
 FindInputValues::Result FindInputValues::run(Module &M,
                                              ModuleAnalysisManager &MAM) {
   //   DominatorTree *DT = &FAM.getResult<DominatorTreeAnalysis>(F);
@@ -152,11 +176,47 @@ FindInputValues::Result FindInputValues::run(Module &M,
 
   ICV.visit(&M);
 
-  return ICV.moduleInputValues;
+  Res.inputVals = ICV.moduleInputValues;
+  return Res;
+}
+
+FindInputReturnFunctions::Result
+FindInputReturnFunctions::run(Function &F, FunctionAnalysisManager &FAM) {
+  Result Res = FindInputReturnFunctions::Result{};
+  if (F.getName() == "main") {
+    errs() << "Skipping main function...\n";
+    Res.returnIsInput = false;
+    return Res;
+  }
+
+  const auto M = F.getParent();
+  const auto &MAMProxy = FAM.getResult<ModuleAnalysisManagerFunctionProxy>(F);
+
+  // assert(MAMProxy.cachedResultExists<FindInputValues>(*F.getParent()) &&
+  //        "This pass need module analysis FindInputValues!");
+  auto inputValues = MAMProxy.getCachedResult<FindInputValues>(*M)->inputVals;
+
+
+  for(auto &BB: F) {
+    for(auto &I: BB) {
+      if(isa<ReturnInst>(I)) {
+        Res.returnIsInput = usesInputVal(I, inputValues);
+      }
+    }
+  }
+
+  return Res;
 }
 
 PreservedAnalyses InputValPrinter::run(Module &M, ModuleAnalysisManager &MAM) {
-  auto inputVals = MAM.getResult<FindInputValues>(M);
+  auto inputVals = MAM.getResult<FindInputValues>(M).inputVals;
+
+  // HACK
+  auto &FAM = MAM.getResult<FunctionAnalysisManagerModuleProxy>(M).getManager();
+
+  for(auto &F: M) {
+    FAM.getResult<FindInputReturnFunctions>(F);
+  }
 
   for(auto V: inputVals) {
     OS << V->getName() << ":\n\t";
@@ -167,12 +227,11 @@ PreservedAnalyses InputValPrinter::run(Module &M, ModuleAnalysisManager &MAM) {
     OS << "\n";
   }
 
-  OS << "FFFFFFFFFFFFFFFFFFFFFF\n";
-
   return PreservedAnalyses::all();
 }
 
 AnalysisKey FindInputValues::Key;
+AnalysisKey FindInputReturnFunctions::Key;
 llvm::PassPluginLibraryInfo getInputValPluginInfo() {
   return {LLVM_PLUGIN_API_VERSION,
           "input-vals",
@@ -193,6 +252,10 @@ llvm::PassPluginLibraryInfo getInputValPluginInfo() {
             PB.registerAnalysisRegistrationCallback(
                 [](ModuleAnalysisManager &MAM) {
                   MAM.registerPass([&] { return FindInputValues(); });
+                });
+            PB.registerAnalysisRegistrationCallback(
+                [](FunctionAnalysisManager &FAM) {
+                  FAM.registerPass([&] { return FindInputReturnFunctions(); });
                 });
           }};
 };

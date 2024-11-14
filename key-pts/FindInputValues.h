@@ -11,6 +11,7 @@
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/Dominators.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/PassManager.h"
 #include "llvm/IR/Value.h"
 #include "llvm/Pass.h"
 
@@ -61,9 +62,20 @@ inline bool isInputFunc(llvm::Function &F, llvm::StringRef &name) {
 
 struct FindInputValues : public llvm::AnalysisInfoMixin<FindInputValues> {
   /**
-   * @brief Map each function to values dependent on input
+   * @brief List of values dependent on input
    */
-  using Result = std::vector<llvm::Value *>;
+
+  struct InputValuesInfo {
+    public:
+    std::vector<llvm::Value *> inputVals;
+
+    bool invalidate(llvm::Module &M, const llvm::PreservedAnalyses &PA,
+                  llvm::ModuleAnalysisManager::Invalidator &Inv) {
+                    return false;
+                  }
+  };
+
+  using Result = InputValuesInfo;
   Result run(llvm::Module &, llvm::ModuleAnalysisManager &);
 
 private:
@@ -71,6 +83,26 @@ private:
   // identifies that particular analysis pass type.
   static llvm::AnalysisKey Key;
   friend struct llvm::AnalysisInfoMixin<FindInputValues>;
+};
+
+struct FindInputReturnFunctions : public llvm::AnalysisInfoMixin<FindInputReturnFunctions> {
+  /**
+   * @brief Functions with retvals dependent on input
+   */
+  class Result {
+    public:
+    bool returnIsInput;
+
+    // bool invalidate(llvm::Function &F, const llvm::PreservedAnalyses &PA,
+    //               llvm::FunctionAnalysisManager::Invalidator &Inv);
+  };
+  Result run(llvm::Function &, llvm::FunctionAnalysisManager &);
+
+private:
+  // A special type used by analysis passes to provide an address that
+  // identifies that particular analysis pass type.
+  static llvm::AnalysisKey Key;
+  friend struct llvm::AnalysisInfoMixin<FindInputReturnFunctions>;
 };
 
 class InputValPrinter : public llvm::PassInfoMixin<InputValPrinter> {
