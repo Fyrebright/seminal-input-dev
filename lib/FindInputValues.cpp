@@ -1,4 +1,5 @@
 #include "FindInputValues.h"
+#include "utils.h"
 
 #include "llvm/Analysis/TargetLibraryInfo.h"
 #include "llvm/IR/DebugInfoMetadata.h"
@@ -23,44 +24,6 @@
 #include <iostream>
 
 using namespace llvm;
-
-std::istream &GotoLine(std::istream &file, unsigned int num) {
-  file.seekg(std::ios::beg);
-  for(int i = 0; i < num - 1; ++i) {
-    file.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-  }
-  return file;
-}
-
-std::string getInstructionSrc(Instruction &I) {
-  if(DILocation *Loc = I.getDebugLoc()) {
-    unsigned lineNumber = Loc->getLine();
-    StringRef File = Loc->getFilename();
-    StringRef Dir = Loc->getDirectory();
-    // bool ImplicitCode = Loc->isImplicitCode();
-
-    std::ifstream srcFile(std::filesystem::canonical((Dir + "/" + File).str()),
-                          std::ios::in);
-
-    GotoLine(srcFile, lineNumber);
-    std::string line;
-    getline(srcFile, line);
-
-    // construct a string with the instruction name and the source code line
-    std::string instructionSrc =
-        formatv("{0} : {1} ({2})", lineNumber, line, I.getOpcodeName());
-
-    srcFile.close();
-
-    return instructionSrc;
-  } else {
-    return "No debug info";
-  }
-}
-
-void printInstructionSrc(raw_ostream &OutS, Instruction &I) {
-  OutS << getInstructionSrc(I) << "\n";
-}
 
 std::vector<Value *> inputValues(CallInst &I, StringRef name) {
   std::vector<Value *> vals{};
@@ -106,7 +69,7 @@ bool printDefUse(raw_ostream &OutS, Value &V) {
 
     if(isa<ICmpInst>(U) || isa<BranchInst>(U)) {
       auto *I = cast<Instruction>(U);
-      OutS << "***" << V.getName() << ": (" << getInstructionSrc(*I) << ")";
+      OutS << "***" << V.getName() << ": (" << utils::getInstructionSrc(*I) << ")";
       // printInstructionSrc(OutS, *I);
       // OutS << "\t";
       return true;
@@ -140,7 +103,7 @@ bool printDefUse(raw_ostream &OutS, Value &V) {
 }
 
 struct InputCallVisitor : public InstVisitor<InputCallVisitor> {
-  std::vector<Value *> moduleInputValues{};
+  std::vector<Value *> ioVals{};
   FunctionAnalysisManager &FAM;
 
   InputCallVisitor(Module &M, ModuleAnalysisManager &MAM)
@@ -153,8 +116,8 @@ struct InputCallVisitor : public InstVisitor<InputCallVisitor> {
       StringRef name;
       if(isLibFunc(*F, TLI) && isInputFunc(*F, name)) {
         auto vals = inputValues(CI, name);
-        moduleInputValues.insert(
-            moduleInputValues.end(), vals.begin(), vals.end());
+        ioVals.insert(
+            ioVals.end(), vals.begin(), vals.end());
       }
     }
   }
@@ -167,11 +130,11 @@ bool usesInputVal(Instruction &I, std::vector<Value *> &inputValues) {
       if(std::find(inputValues.cbegin(), inputValues.cend(), V) !=
          inputValues.cend()) {
         errs() << "FOUNDIT";
-        printInstructionSrc(errs(), cast<Instruction>(*U));
+        utils::printInstructionSrc(errs(), cast<Instruction>(*U));
         return true;
       } else if(auto uI = dyn_cast<Instruction>(U)) {
         errs() << "sadge:";
-        printInstructionSrc(errs(), *uI);
+        utils::printInstructionSrc(errs(), *uI);
         if(usesInputVal(*uI, inputValues)) {
           return true;
         }
@@ -190,7 +153,7 @@ FindInputValues::Result FindInputValues::run(Module &M,
 
   ICV.visit(&M);
 
-  Res.inputVals = ICV.moduleInputValues;
+  Res.inputVals = ICV.ioVals;
   return Res;
 }
 
@@ -241,11 +204,11 @@ PreservedAnalyses InputValPrinter::run(Module &M, ModuleAnalysisManager &MAM) {
       // find if storeinst uses V
       for(auto U: V->users()) {
         if(auto SI = dyn_cast<StoreInst>(U)) {
-          OS << "STORE: " << getInstructionSrc(*SI);
+          OS << "STORE: " << utils::getInstructionSrc(*SI);
         } else {
           OS << "NO STORE:";
           if(auto I = dyn_cast<Instruction>(U)) {
-            OS << getInstructionSrc(*I);
+            OS << utils::getInstructionSrc(*I);
           }
         }
         errs() << "\n\t";

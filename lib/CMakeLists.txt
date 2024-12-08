@@ -3,10 +3,13 @@
 set(PLUGINS
     FindInputValues
     # RIV
+    FindIOVals
     )
 
 set(FindInputValues_SOURCES
 FindInputValues.cpp)
+set(FindIOVals_SOURCES
+FindIOVals.cpp)
 
 # CONFIGURE THE PLUGIN LIBRARIES
 # ==============================
