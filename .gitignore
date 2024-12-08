@@ -2,6 +2,7 @@
 .cache
 
 *.ll
+*.c.ll
 *.bc
 a.out
 *.dot

@@ -798,7 +798,7 @@ int main() {
 			}
 			printf("\n");
 			printf("Result\n");
-			if (result_Eq == "null") { printf("x1 = %lf", x1_Eq); }
+			if (strcmp(result_Eq, "null") == 0) { printf("x1 = %lf", x1_Eq); }
 			else { printf("%s", result_Eq); }
 			printf("\n\n");
 			system("pause");
@@ -835,7 +835,7 @@ int main() {
 			}
 			printf("\n");
 			printf("Result\n");
-			if (result_Eq == "null") {
+			if (strcmp(result_Eq, "null") == 0) {
 				printf("x1 = %lf\n", x1_Eq); 
 				printf("x2 = %lf", x2_Eq);
 			}
@@ -1710,7 +1710,7 @@ int main() {
 			printf("Enter input: ");
 			scanf("%lf", &x);
 			fseek(stdin, 0, SEEK_SET);
-			result = abs(x);
+			result = fabs(x);
 			printf("\nResult");
 			printf("\nabs(%lf) = %lf", x, result);
 			printf("\n\n");

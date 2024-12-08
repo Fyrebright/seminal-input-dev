@@ -1,5 +1,8 @@
 #include "FindInputValues.h"
 
+#include "llvm/Analysis/TargetLibraryInfo.h"
+#include "llvm/IR/DebugInfoMetadata.h"
+#include "llvm/IR/DebugLoc.h"
 #include "llvm/IR/InstVisitor.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
@@ -8,8 +11,11 @@
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/InstructionCost.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Transforms/Scalar/InstSimplifyPass.h"
+#include "llvm/Transforms/Utils/Mem2Reg.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -26,9 +32,9 @@ std::istream &GotoLine(std::istream &file, unsigned int num) {
   return file;
 }
 
-void printInstructionSrc(raw_ostream &OutS, Instruction &I) {
+std::string getInstructionSrc(Instruction &I) {
   if(DILocation *Loc = I.getDebugLoc()) {
-    unsigned Line = Loc->getLine();
+    unsigned lineNumber = Loc->getLine();
     StringRef File = Loc->getFilename();
     StringRef Dir = Loc->getDirectory();
     // bool ImplicitCode = Loc->isImplicitCode();
@@ -36,16 +42,24 @@ void printInstructionSrc(raw_ostream &OutS, Instruction &I) {
     std::ifstream srcFile(std::filesystem::canonical((Dir + "/" + File).str()),
                           std::ios::in);
 
-    GotoLine(srcFile, Line);
+    GotoLine(srcFile, lineNumber);
     std::string line;
     getline(srcFile, line);
-    OutS << "Line " << Line << " source: " << line << "("
-         << I.getOpcodeName()
-         //  << "," << I.getOperand(1)->getName()
-         << ")\n";
+
+    // construct a string with the instruction name and the source code line
+    std::string instructionSrc =
+        formatv("{0} : {1} ({2})", lineNumber, line, I.getOpcodeName());
 
     srcFile.close();
+
+    return instructionSrc;
+  } else {
+    return "No debug info";
   }
+}
+
+void printInstructionSrc(raw_ostream &OutS, Instruction &I) {
+  OutS << getInstructionSrc(I) << "\n";
 }
 
 std::vector<Value *> inputValues(CallInst &I, StringRef name) {
@@ -92,8 +106,8 @@ bool printDefUse(raw_ostream &OutS, Value &V) {
 
     if(isa<ICmpInst>(U) || isa<BranchInst>(U)) {
       auto *I = cast<Instruction>(U);
-      OutS << "***";
-      printInstructionSrc(OutS, *I);
+      OutS << "***" << V.getName() << ": (" << getInstructionSrc(*I) << ")";
+      // printInstructionSrc(OutS, *I);
       // OutS << "\t";
       return true;
       // } else if(auto SI = dyn_cast<StoreInst>(U)) {
@@ -101,8 +115,8 @@ bool printDefUse(raw_ostream &OutS, Value &V) {
       //   errs() << SI->getPointerOperand()->getName();
       //   // printDefUse(OutS, *SI->getValueOperand());
     } else { // if(auto *I = dyn_cast<Instruction>(U)) {
-      printInstructionSrc(OutS, *cast<Instruction>(U));
-      OutS << "\t";
+      // printInstructionSrc(OutS, *cast<Instruction>(U));
+      // OutS << "\t";
     }
 
     // Recurse
@@ -183,7 +197,7 @@ FindInputValues::Result FindInputValues::run(Module &M,
 FindInputReturnFunctions::Result
 FindInputReturnFunctions::run(Function &F, FunctionAnalysisManager &FAM) {
   Result Res = FindInputReturnFunctions::Result{};
-  if (F.getName() == "main") {
+  if(F.getName() == "main") {
     errs() << "Skipping main function...\n";
     Res.returnIsInput = false;
     return Res;
@@ -195,7 +209,6 @@ FindInputReturnFunctions::run(Function &F, FunctionAnalysisManager &FAM) {
   // assert(MAMProxy.cachedResultExists<FindInputValues>(*F.getParent()) &&
   //        "This pass need module analysis FindInputValues!");
   auto inputValues = MAMProxy.getCachedResult<FindInputValues>(*M)->inputVals;
-
 
   for(auto &BB: F) {
     for(auto &I: BB) {
@@ -219,12 +232,26 @@ PreservedAnalyses InputValPrinter::run(Module &M, ModuleAnalysisManager &MAM) {
   }
 
   for(auto V: inputVals) {
-    OS << V->getName() << ":\n\t";
+    // OS << V->getName() << ":";
     // if (auto *I = dyn_cast<Instruction>(V)) {
     //   printInstructionSrc(OS, *I);
     // }
-    printDefUse(OS, *V);
-    OS << "\n";
+    if(printDefUse(OS, *V)) {
+      OS << "\n\t";
+      // find if storeinst uses V
+      for(auto U: V->users()) {
+        if(auto SI = dyn_cast<StoreInst>(U)) {
+          OS << "STORE: " << getInstructionSrc(*SI);
+        } else {
+          OS << "NO STORE:";
+          if(auto I = dyn_cast<Instruction>(U)) {
+            OS << getInstructionSrc(*I);
+          }
+        }
+        errs() << "\n\t";
+      }
+      errs() << "---\n";
+    }
   }
 
   return PreservedAnalyses::all();
