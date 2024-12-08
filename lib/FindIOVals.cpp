@@ -1,5 +1,7 @@
 #include "FindIOVals.h"
 
+#include "utils.h"
+
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/IR/Function.h"
@@ -22,20 +24,35 @@ using namespace llvm;
 static void printIOVals(raw_ostream &OS,
                         Function &Func,
                         const FindIOVals::Result &res) noexcept {
-  if(res.ioVals.empty())
-    return;
 
-  OS << "IO Values in \"" << Func.getName() << "\":\n";
+  OS << "IO Values in \"" << Func.getName() << "\":";
+  if(res.ioVals.empty()) {
+    OS << " None\n";
+    return;
+  } else {
+    OS << "\n";
+  }
 
   // Using a ModuleSlotTracker for printing makes it so full function analysis
   // for slot numbering only occurs once instead of every time an instruction
   // is printed.
   ModuleSlotTracker Tracker(Func.getParent());
 
-  for(Value *V: res.ioVals) {
-    V->print(OS, Tracker);
-    OS << '\n';
+  // Print instruction for each value in res.ioValsMetadata
+  for(const auto &IOVal: res.ioValsMetadata) {
+    OS << "Value " << IOVal.val->getName()
+       << " defined at: " << utils::getInstructionSrc(*IOVal.inst) << "\n";
   }
+
+  // for(Value *V: res.ioVals) {
+  //   // V->print(OS, Tracker);
+  //   if (auto I = dyn_cast<Instruction>(V)) {
+  //     utils::printInstructionSrc(OS, *I);
+  //   } else {
+  //     OS << "Constant Value: ";
+  //     V->printAsOperand(OS, false, Func.getParent());
+  //   }
+  // }
 }
 
 // Deprecated? Would like if I could include a description:
@@ -48,58 +65,65 @@ static constexpr char PluginName[] = "FindIOVals";
 // FindIOVals implementation
 //------------------------------------------------------------------------------
 
-std::vector<Value *> inputValues(CallInst &I, StringRef name) {
+FindIOVals::Result inputValues(CallInst &I, StringRef name) {
   std::vector<Value *> vals{};
+  std::vector<IOValMetadata> valsMetadata{};
 
   if(name == "scanf") {
     // All after first argument
     for(auto arg = I.arg_begin() + 1; arg != I.arg_end(); ++arg) {
       vals.push_back(arg->get());
+      valsMetadata.push_back({arg->get(), &I, name.str()});
     }
   } else if(name == "fscanf" || name == "sscanf") {
     // All after second argument
     for(auto arg = I.arg_begin() + 2; arg != I.arg_end(); ++arg) {
       vals.push_back(arg->get());
+      valsMetadata.push_back({arg->get(), &I, name.str()});
     }
   } else if(name == "gets" || name == "fgets" || name == "fread") {
     // first argument
     vals.push_back(I.getArgOperand(0));
+    valsMetadata.push_back({I.getArgOperand(0), &I, name.str()});
   } else if(name == "getopt") {
     // third argument
     vals.push_back(I.getArgOperand(2));
+    valsMetadata.push_back({I.getArgOperand(2), &I, name.str()});
+  } else if(name == "fdopen" || name == "freopen" || name == "popen") {
+    // Retvals, and mark as file descriptors
+    auto retval = dyn_cast_if_present<Value>(&I);
+    valsMetadata.push_back({retval, &I, name.str(), true, "File descriptor"});
+  } else if(name == "fgetc" || name == "getc" || name == "getc_unlocked" ||
+            name == "getchar" || name == "getchar_unlocked" || name == "getw" || name == "getenv") {
+    // Retvals, not file descriptors
+    auto retval = dyn_cast_if_present<Value>(&I);
+    valsMetadata.push_back({retval, &I, name.str()});
   }
 
-  // Finally, add retval
-  if(auto retval = dyn_cast_if_present<Value>(&I)) {
-    vals.push_back(retval); // TODO: possibly need
-
-    for(auto U: I.users()) {
-      if(auto SI = dyn_cast<StoreInst>(U)) {
-        vals.push_back(SI->getOperand(1));
-      }
+  // Add store instructions that use the return value
+  for(auto U: I.users()) {
+    if(auto SI = dyn_cast<StoreInst>(U)) {
+      vals.push_back(SI->getOperand(1));
+      valsMetadata.push_back({SI->getOperand(1), SI, name.str()});
     }
   }
-
-  return vals;
+  return FindIOVals::Result{vals, valsMetadata};
 }
 
 struct InputCallVisitor : public InstVisitor<InputCallVisitor> {
-  std::vector<Value *> ioVals{};
+  FindIOVals::Result res{};
 
   void visitCallInst(CallInst &CI) {
     if(auto *F = CI.getCalledFunction()) {
       StringRef name;
       if(isInputFunc(*F, name)) {
-        auto vals = inputValues(CI, name);
-        ioVals.insert(
-            ioVals.end(), vals.begin(), vals.end());
+        res = inputValues(CI, name);
       }
     }
   }
 };
 
-FindIOVals::Result FindIOVals::run(Function &F,
-                                   FunctionAnalysisManager &FAM) {
+FindIOVals::Result FindIOVals::run(Function &F, FunctionAnalysisManager &FAM) {
   return run(F);
 }
 
@@ -109,7 +133,7 @@ FindIOVals::Result FindIOVals::run(Function &F) {
 
   ICV.visit(&F);
 
-  Res.ioVals = ICV.ioVals;
+  Res = ICV.res;
   return Res;
 }
 

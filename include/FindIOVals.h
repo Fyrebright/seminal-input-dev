@@ -1,14 +1,15 @@
-#include "llvm/IR/PassManager.h"
-#include "llvm/Pass.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/IR/Instruction.h"
+#include "llvm/Pass.h"
+#include "utils.h"
 
-#include "llvm/IR/InstVisitor.h"
 #include <set>
 #include <vector>
 
 // Forward declarations
 namespace llvm {
-
+class Instruction;
 class Value;
 class Function;
 class Module;
@@ -35,7 +36,7 @@ const std::set<llvm::StringRef> INPUT_FUNCTIONS{
     // "popen",
     "scanf",
     "sscanf",
-    "ungetc",
+    "ungetc","getenv"
 };
 
 inline bool isInputFunc(llvm::Function &F, llvm::StringRef &name) {
@@ -48,21 +49,33 @@ inline bool isInputFunc(llvm::Function &F, llvm::StringRef &name) {
   return INPUT_FUNCTIONS.find(name) != INPUT_FUNCTIONS.cend();
 }
 
+// Struct to map input values to the instruction that assigns them
+struct IOValMetadata {
+  llvm::Value *val;
+  llvm::Instruction *inst;
+  std::string funcName;
+  bool isFile = false;
+  std::string comment = "";
+};
+
 //------------------------------------------------------------------------------
 // New PM interface
 //------------------------------------------------------------------------------
 class FindIOVals : public llvm::AnalysisInfoMixin<FindIOVals> {
+public:
   struct IOValsInfo {
-    public:
+  public:
     std::vector<llvm::Value *> ioVals;
 
-      bool invalidate(llvm::Function &F, const llvm::PreservedAnalyses &PA,
-                  llvm::FunctionAnalysisManager::Invalidator &Inv) {
-                    return false;
-                  }
+    std::vector<IOValMetadata> ioValsMetadata;
+
+    bool invalidate(llvm::Function &F,
+                    const llvm::PreservedAnalyses &PA,
+                    llvm::FunctionAnalysisManager::Invalidator &Inv) {
+      return false;
+    }
   };
 
-public:
   using Result = IOValsInfo;
   // This is one of the standard run() member functions expected by
   // PassInfoMixin. When the pass is executed by the new PM, this is the
@@ -83,7 +96,7 @@ private:
 //------------------------------------------------------------------------------
 class FindIOValsPrinter : public llvm::PassInfoMixin<FindIOValsPrinter> {
 public:
-  explicit FindIOValsPrinter(llvm::raw_ostream &OutStream) : OS(OutStream){};
+  explicit FindIOValsPrinter(llvm::raw_ostream &OutStream) : OS(OutStream) {};
 
   llvm::PreservedAnalyses run(llvm::Function &Func,
                               llvm::FunctionAnalysisManager &FAM);

@@ -9,7 +9,7 @@ set(PLUGINS
 set(FindInputValues_SOURCES
 FindInputValues.cpp)
 set(FindIOVals_SOURCES
-FindIOVals.cpp)
+FindIOVals.cpp utils.cpp)
 
 # CONFIGURE THE PLUGIN LIBRARIES
 # ==============================

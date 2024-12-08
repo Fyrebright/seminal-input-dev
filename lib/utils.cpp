@@ -73,7 +73,7 @@ std::string getInstructionSrc(Instruction &I) {
       return "Error accessing file: " + std::string(e.what());
     }
   }
-  return "No debug info";
+  return formatv("{0} : {1} ({2})", "No debug info", I.getName(), I.getOpcodeName()); 
 }
 
 } // namespace utils

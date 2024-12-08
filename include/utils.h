@@ -19,8 +19,11 @@ namespace utils {
 
 std::string getInstructionSrc(llvm::Instruction &I);
 
+void printInstructionSrc(llvm::raw_ostream &OutS, llvm::Instruction &I);
+
 inline void printInstructionSrc(llvm::raw_ostream &OutS, llvm::Instruction &I) {
   OutS << getInstructionSrc(I) << "\n";
+  OutS.flush();
 }
 
 } // namespace utils

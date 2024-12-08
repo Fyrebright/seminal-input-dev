@@ -3,9 +3,9 @@
 # Usage: ./inline_run.sh <c-file>
 
 # Path to the plugin
-PLUGIN_PATH=build/lib/libFindInputValues.so
+PLUGIN_PATH=build/lib/libFindIOVals.so
 USE_INLINE=0
-PASSES='function(reg2mem),print<input-vals>'
+PASSES='function(mem2reg),function(print<find-io-val>)'
 OPTS='-disable-output'
 DEBUG_PM=1
 
@@ -22,9 +22,10 @@ if [ ! -f "$1" ]; then
 fi
 
 # Build the project
-if ! cmake --build build/
+build_output=$(cmake --build build/)
+if [ $? -ne 0 ];
 then
-    echo "Error building the project"
+    printf "Error building the project:\n %s\n" "$build_output"
     exit 1
 fi
 
