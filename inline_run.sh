@@ -1,41 +1,72 @@
-# /usr/bin/bash
+#!/usr/bin/env bash
 # Given a C file, this script will compile it to LLVM IR with debug information, inline it, and run print<input-vals> on it.
 # Usage: ./inline_run.sh <c-file>
 
-cmake --build build/
-if [ $? -ne 0 ]; then
+# Path to the plugin
+PLUGIN_PATH=build/lib/libFindInputValues.so
+USE_INLINE=0
+PASSES='function(reg2mem),print<input-vals>'
+OPTS='-disable-output'
+DEBUG_PM=1
+
+# Check if the plugin exists
+if [ ! -f $PLUGIN_PATH ]; then
+    echo "Plugin not found at $PLUGIN_PATH"
+    exit 1
+fi
+
+# Check if the input file exists
+if [ ! -f "$1" ]; then
+    echo "File not found: $1"
+    exit 1
+fi
+
+# Build the project
+if ! cmake --build build/
+then
     echo "Error building the project"
     exit 1
 fi
 
+# Add PM debug flag
+if [ $DEBUG_PM -eq 1 ]; then
+    OPTS="$OPTS -debug-pass-manager"
+fi
+
 # Get file path from input
 file=$1
-basename=$(basename $file)
+basename=$(basename "$file")
 mkdir -p out
 
 # Compile the C file to LLVM IR with debug information and assign it to a variable
-IR=$(clang -g -S -emit-llvm -O0 -fno-discard-value-names -Xclang -disable-O0-optnone -o - $file)
+IR=$(clang -g -S -emit-llvm -O0 -fno-discard-value-names -Xclang -disable-O0-optnone -o - "$file")
 # echo "$IR"
 
-# Remove noinline attribute from functions in IR
-IR_sed=$(sed 's/noinline//g' <<< "$IR")
-# Write the IR to a file
-echo "$IR_sed" > out/$basename.ll
+if [ $USE_INLINE -eq 0 ]; then
+    # Write the IR to a file
+    echo "$IR" >out/"$basename".ll
 
-# Inline the LLVM IR and assign it to a variable
-INLINE=$(opt -S -passes="inline" <(echo "$IR_sed"))
+    opt \
+        -load-pass-plugin=$PLUGIN_PATH \
+        -passes=$PASSES \
+        -disable-output \
+        out/"$basename".ll
+else
+    # Remove noinline attribute from functions in IR
+    IR_sed=$(sed 's/noinline//g' <<<"$IR")
+    # Write the IR to a file
+    echo "$IR_sed" >out/"$basename".ll
 
-# Write the inlined IR to a file
-echo "$INLINE" > out/$basename-inlined.ll
+    # Inline the LLVM IR and assign it to a variable
+    INLINE=$(opt -S -passes="inline" <(echo "$IR_sed"))
 
-# Run print<input-vals> on the inlined IR
-opt \
-    -load-pass-plugin=build/key-pts/FindInputVals.so \
-    -passes='function(mem2reg),print<input-vals>' \
-    -disable-output \
-    out/$basename-inlined.ll  
+    # Write the inlined IR to a file
+    echo "$INLINE" >out/"$basename"-inlined.ll
 
-    # out/$basename.ll 
-    # <(echo "$INLINE")
-    # -debug-pass-manager
-    # -passes='function(mem2reg),print<input-vals>' \
+    # Run print<input-vals> on the inlined IR
+    opt \
+        -load-pass-plugin=$PLUGIN_PATH \
+        -passes=$PASSES \
+        -disable-output \
+        out/"$basename"-inlined.ll
+fi
