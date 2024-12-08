@@ -60,7 +60,10 @@ int main() {
   // Excuse to use a returning input function instead
   printf("Enter a char: ");
   int amt = (int)getchar();
-  int arr[amt];
+  int *arr = (int *)malloc(amt * sizeof(int));
+  if (arr == NULL) {
+    error("Memory allocation failed");
+  }
   for(int i = 0; i < amt; i++) {
     // Input values with fgets instead
     printf("Enter an integer: ");
@@ -73,4 +76,6 @@ int main() {
   for(int i = 0; i < 10; i += 2) {
     printf("%d is odd?: %c", arr[i], odd(arr[i]));
   }
+
+  free(arr);
 }

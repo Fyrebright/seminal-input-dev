@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <stdio.h>
 #include <unistd.h>
 
@@ -21,7 +22,7 @@ int main() {
 
 
   // --- Return val
-  // fopen(const char *__restrict filename, const char *__restrict modes);
+  // FILE *fd = fopen("foo.txt", "r");
   // fdopen(int fd, const char *modes);
   // freopen(const char *__restrict filename, const char *__restrict modes, FILE *__restrict stream);
   // popen(const char *command, const char *modes);
@@ -32,6 +33,7 @@ int main() {
   // getchar();
   // getchar_unlocked();
   // getw(FILE *stream);
+  // getenv(const char *name);
   
   // --------------------------- ??
   // ungetc(int c, FILE *stream);
