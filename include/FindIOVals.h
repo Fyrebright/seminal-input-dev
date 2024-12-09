@@ -65,7 +65,7 @@ class FindIOVals : public llvm::AnalysisInfoMixin<FindIOVals> {
 public:
   struct IOValsInfo {
   public:
-    std::vector<llvm::Value *> ioVals;
+    std::set<llvm::Value *> ioVals;
 
     std::vector<IOValMetadata> ioValsMetadata;
 
@@ -89,6 +89,26 @@ public:
 private:
   friend struct llvm::AnalysisInfoMixin<FindIOVals>;
   static llvm::AnalysisKey Key;
+};
+
+struct FuncReturnIO : public llvm::AnalysisInfoMixin<FuncReturnIO> {
+  /**
+   * @brief Functions with retvals dependent on input
+   */
+  class Result {
+    public:
+    bool returnIsInput;
+
+    // bool invalidate(llvm::Function &F, const llvm::PreservedAnalyses &PA,
+    //               llvm::FunctionAnalysisManager::Invalidator &Inv);
+  };
+  Result run(llvm::Function &, llvm::FunctionAnalysisManager &);
+
+private:
+  // A special type used by analysis passes to provide an address that
+  // identifies that particular analysis pass type.
+  static llvm::AnalysisKey Key;
+  friend struct llvm::AnalysisInfoMixin<FuncReturnIO>;
 };
 
 //------------------------------------------------------------------------------

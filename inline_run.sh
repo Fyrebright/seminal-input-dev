@@ -3,21 +3,29 @@
 # Usage: ./inline_run.sh <c-file>
 
 # Path to the plugin
+# PLUGIN_PATH=build/lib/libFindKeyPoints.so
 PLUGIN_PATH=build/lib/libFindIOVals.so
+# PLUGIN_PATH=build/lib/libFindInputValues.so
+
 USE_INLINE=0
-PASSES='function(mem2reg),function(print<find-io-val>)'
+OPTLEVEL=0
+
+# PASSES='function(mem2reg),function(print<find-key-pts>)'
+# PASSES='function(mem2reg),function(print<find-io-val>)'
+PASSES='function(print<find-io-val>)'
+# PASSES='function(mem2reg),print<input-vals>'
+
 OPTS='-disable-output'
 DEBUG_PM=1
 
-# Check if the plugin exists
-if [ ! -f $PLUGIN_PATH ]; then
-    echo "Plugin not found at $PLUGIN_PATH"
-    exit 1
-fi
+# Get file path from input
+file=$1
+basename=$(basename "$file")
+mkdir -p out
 
 # Check if the input file exists
-if [ ! -f "$1" ]; then
-    echo "File not found: $1"
+if [ ! -f "$file" ]; then
+    echo "File not found: $file"
     exit 1
 fi
 
@@ -29,18 +37,20 @@ then
     exit 1
 fi
 
+# Check if the plugin exists
+if [ ! -f $PLUGIN_PATH ]; then
+    echo "Plugin not found at $PLUGIN_PATH"
+    exit 1
+fi
+
 # Add PM debug flag
 if [ $DEBUG_PM -eq 1 ]; then
     OPTS="$OPTS -debug-pass-manager"
 fi
 
-# Get file path from input
-file=$1
-basename=$(basename "$file")
-mkdir -p out
 
 # Compile the C file to LLVM IR with debug information and assign it to a variable
-IR=$(clang -g -S -emit-llvm -O0 -fno-discard-value-names -Xclang -disable-O0-optnone -o - "$file")
+IR=$(clang -g -S -emit-llvm -O"$OPTLEVEL" -fno-discard-value-names -Xclang -disable-O0-optnone -o - "$file")
 # echo "$IR"
 
 if [ $USE_INLINE -eq 0 ]; then

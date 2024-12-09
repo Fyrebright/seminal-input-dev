@@ -14,6 +14,7 @@
 #include "llvm/IR/PassManager.h"
 #include "llvm/IR/Value.h"
 #include "llvm/Pass.h"
+#include "utils.h"
 
 #include <set>
 

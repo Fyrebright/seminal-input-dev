@@ -4,21 +4,30 @@ set(PLUGINS
     FindInputValues
     # RIV
     FindIOVals
+    FindKeyPoints
     )
 
 set(FindInputValues_SOURCES
 FindInputValues.cpp)
 set(FindIOVals_SOURCES
-FindIOVals.cpp utils.cpp)
+FindIOVals.cpp)
+set(FindKeyPoints_SOURCES
+FindKeyPoints.cpp)
+
+# Add shared source files
+set(SHARED_SOURCES
+    utils.cpp
+    )
 
 # CONFIGURE THE PLUGIN LIBRARIES
 # ==============================
 foreach( plugin ${PLUGINS} )
-    # Create a library corresponding to 'plugin'
+    # Create a library corresponding to 'plugin' with shared sources
     add_library(
       ${plugin}
       SHARED
       ${${plugin}_SOURCES}
+      ${SHARED_SOURCES}
       )
 
     # Configure include directories for 'plugin'

@@ -48,7 +48,7 @@ std::vector<Value *> inputValues(CallInst &I, StringRef name) {
 
   // Finally, add retval
   if(auto retval = dyn_cast_if_present<Value>(&I)) {
-    vals.push_back(retval); // TODO: possibly need
+    vals.push_back(retval); 
 
     for(auto U: I.users()) {
       if(auto SI = dyn_cast<StoreInst>(U)) {
