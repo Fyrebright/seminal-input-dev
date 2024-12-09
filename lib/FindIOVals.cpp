@@ -111,21 +111,21 @@ FindIOVals::Result FindIOVals::run(Function &F) {
 //-----------------------------------------------------------------------------
 
 bool usesInputVal(Instruction &I, std::set<Value *> &ioVals) {
-  errs() << "Checking ...\n";
+  // errs() << "Checking ...\n";
   for(Use &U: I.operands()) {
-    errs() << "User " << U.get()->getName() << "\n";
+    // errs() << "User " << U.get()->getName() << "\n";
     if (auto instU = dyn_cast<Instruction>(U)) {
-        utils::printInstructionSrc(errs(), *instU);
+        // utils::printInstructionSrc(errs(), *instU);
     }
 
     if(auto V = dyn_cast<Value>(U)) {
       // Check if in input values
       if(ioVals.find(V) != ioVals.cend()) {
-        errs() << "FOUNDIT";
+        // errs() << "FOUNDIT";
         return true;
       } else if(auto uI = dyn_cast<Instruction>(U)) {
-        errs() << "sadge:";
-        utils::printInstructionSrc(errs(), *uI);
+        // errs() << "sadge:";
+        // utils::printInstructionSrc(errs(), *uI);
         if(usesInputVal(*uI, ioVals)) {
           return true;
         }

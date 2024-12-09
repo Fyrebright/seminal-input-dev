@@ -1,7 +1,7 @@
 # THE LIST OF PLUGINS AND THE CORRESPONDING SOURCE FILES
 # ======================================================
 set(PLUGINS
-    FindInputValues
+    # FindInputValues
     # RIV
     FindIOVals
     FindKeyPoints
