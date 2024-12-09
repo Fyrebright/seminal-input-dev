@@ -83,28 +83,30 @@ struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
         return;
 
       BranchInst *ExitingBI = dyn_cast<BranchInst>(ExitingBB->getTerminator());
-      if(ExitingBI){
+      if(ExitingBI) {
         printInstructionSrc(ExitingBI);
         errs() << " <--- exiting condition\n";
-        // errs() << "" << ExitingBI->getCondition()->getName() << "\n";
+        // LLVM_DEBUG(dbgs() << "" << ExitingBI->getCondition()->getName() <<
+        // "\n");
         errs() << "" << ExitingBI->getNumOperands() << "\n";
         errs() << "" << ExitingBI->getOperand(0) << "\n";
       }
       return;
 
-      // errs() << "Is canonical??  " << L->isCanonical(SE);
+      // LLVM_DEBUG(dbgs() << "Is canonical??  " << L->isCanonical(SE));
 
       // if(auto LB = L->getBounds(SE)) {
-      //   errs() << "Loop Bounds!!!\n";
+      // LLVM_DEBUG(dbgs() << "Loop Bounds!!!\n");
       //   errs() << "\t"
       //          << "getInitialIVValue" << LB->getInitialIVValue().getName()
       //          << "\n";
-        // errs() << "\t" << "getStepInst" << LB->getStepInst() << "\n";
-        // errs() << "\t" << "getStepValue" << LB->getStepValue() << "\n";
-        // errs() << "\t" << "getFinalIVValue" << LB->getFinalIVValue() << "\n";
-        // errs() << "\t" << "getCanonicalPredicate" <<
-        // LB->getCanonicalPredicate() << "\n"; errs() << "\t" << "getDirection"
-        // << LB->getDirection() << "\n";
+      // LLVM_DEBUG(dbgs() << "\t" << "getStepInst" << LB->getStepInst() <<
+      // "\n"); LLVM_DEBUG(dbgs() << "\t" << "getStepValue" <<
+      // LB->getStepValue() << "\n"); LLVM_DEBUG(dbgs() << "\t" <<
+      // "getFinalIVValue" << LB->getFinalIVValue() << "\n"); errs() << "\t" <<
+      // "getCanonicalPredicate" << LB->getCanonicalPredicate() << "\n"; errs()
+      // << "\t" << "getDirection"
+      // << LB->getDirection() << "\n";
       // }
 
       if(L->getLoopLatch()) {
@@ -112,18 +114,18 @@ struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
         errs() << "\n---\nLoop Latch:\n";
         // if(BB->getSinglePredecessor()){
         //   // BB->getSinglePredecessor()->print(errs());
-        //   errs() << BB->getSinglePredecessor()->getName();
+        // LLVM_DEBUG(dbgs() << BB->getSinglePredecessor()->getName());
         // }
         // BB->print(errs());
 
         for(auto &I: *BB) {
           // I.print(errs());
-          // errs() << "Instruction: \n";
+          // LLVM_DEBUG(dbgs() << "Instruction: \n");
           // if (llvm::isa<llvm::BranchInst>(I)) {
-          // errs() << "BranchInst: \n";
+          // LLVM_DEBUG(dbgs() << "BranchInst: \n");
           I.print(errs(), true);
           printInstructionSrc(I);
-          // errs() << "\n---\n";
+          // LLVM_DEBUG(dbgs() << "\n---\n");
           // }
         }
 
@@ -155,12 +157,12 @@ struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
 
   void funcBranches(Function &F) {
     for(auto &B: F) {
-      // errs() << "\n---\nBasic block:\n";
+      // LLVM_DEBUG(dbgs() << "\n---\nBasic block:\n");
       // B.print(errs());
 
       for(auto &I: B) {
         // I.print(errs());
-        // errs() << "Instruction: \n";
+        // LLVM_DEBUG(dbgs() << "Instruction: \n");
         if(llvm::isa<llvm::BranchInst>(I)) {
           errs() << "BranchInst: \n";
           I.print(errs(), true);
@@ -199,31 +201,31 @@ struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
 
       // Skip debug functions
       if(F.isIntrinsic()) {
-        //errs() << "SKIPPED: " << F.getName() << "\n";
+        // LLVM_DEBUG(dbgs() << "SKIPPED: " << F.getName() << "\n");
         continue;
       }
 
       // rand causes crash every time...
       if(F.getName() == "rand" | F.getName() == "srand") {
-        //errs() << "Lets try rand... (";
+        // LLVM_DEBUG(dbgs() << "Lets try rand... (");
 
         int isLib = TLI.getLibFunc(F.getName(), libF);
         if(!isLib)
-          //errs() << "WTF!!";
-        //errs() << TLI.getLibFunc(F.getName(), libF);
+          // LLVM_DEBUG(dbgs() << "WTF!!");
+          // LLVM_DEBUG(dbgs() << TLI.getLibFunc(F.getName(), libF));
 
-        //errs() << ") SURVIVED??\n";
+          // LLVM_DEBUG(dbgs() << ") SURVIVED??\n");
 
-        //errs() << "SKIPPED: " << F.getName() << "\n";
-        continue;
+          // LLVM_DEBUG(dbgs() << "SKIPPED: " << F.getName() << "\n");
+          continue;
       }
 
-      //errs() << "In a function called " << F.getName() << "!\n";
+      // LLVM_DEBUG(dbgs() << "In a function called " << F.getName() << "!\n");
 
       // Skip library functions
       bool isLib = TLI.getLibFunc(F.getName(), libF);
       if(isLib) {
-        //errs() << "SKIPPED: " << F.getName() << "\n";
+        // LLVM_DEBUG(dbgs() << "SKIPPED: " << F.getName() << "\n");
       } else {
         LoopInfo &LI = FAM.getResult<LoopAnalysis>(F);
         ScalarEvolution &SE = FAM.getResult<ScalarEvolutionAnalysis>(F);
@@ -233,7 +235,8 @@ struct SkeletonPass : public PassInfoMixin<SkeletonPass> {
         funcLoopPrint(F, LI, SE);
       }
 
-      //errs() << "I saw a function called " << F.getName() << "!\n";
+      // LLVM_DEBUG(dbgs() << "I saw a function called " << F.getName() <<
+      // "!\n");
     }
 
     return PreservedAnalyses::all();

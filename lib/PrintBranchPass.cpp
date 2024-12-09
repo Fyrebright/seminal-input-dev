@@ -95,7 +95,7 @@ void printUseDef(Instruction &I) {
     }
     // v->print(errs());
     // v->printAsOperand(errs());
-    // errs() << v->getType();
+    // LLVM_DEBUG(dbgs() << v->getType());
   }
 }
 
@@ -117,7 +117,7 @@ void printDefUse(Value &V) {
 }
 
 bool isLibFunc(Function &F, TargetLibraryInfo &TLI) {
-  // errs() << "checking if " << F.getName() << " is a LibFunc\n";
+  // LLVM_DEBUG(dbgs() << "checking if " << F.getName() << " is a LibFunc\n");
 
   // if(EVIL_FUNCTIONS.find(F.getName()) != EVIL_FUNCTIONS.cend()) {
   //   return true;
@@ -132,7 +132,7 @@ bool isInputFunc(Function &F, StringRef &name) {
 
   // Remove prefix if present
   name.consume_front("__isoc99_");
-  // errs() << "after consume " << name << "\n";
+  // LLVM_DEBUG(dbgs() << "after consume " << name << "\n");
 
   return INPUT_FUNCTIONS.find(name) != INPUT_FUNCTIONS.cend();
 }
@@ -162,7 +162,7 @@ std::vector<Value *> inputValues(CallInst &I, StringRef name) {
   if(auto retval = dyn_cast_if_present<Value>(&I)) {
     vals.push_back(retval); // TODO: possibly need
 
-    // errs() << "\n";
+    // LLVM_DEBUG(dbgs() << "\n");
     for(auto U: I.users()) {
       errs() << ":u";
       // if(auto *inst = dyn_cast<Instruction>(U)) {
@@ -191,48 +191,49 @@ struct KeyPointVisitor : public InstVisitor<KeyPointVisitor> {
   // &I)                { errs() << "BranchInst(" << lineNum(I) << ")\n"; } void
   // visitSwitchInst(SwitchInst &I)                { errs() << "SwitchInst(" <<
   // lineNum(I) << ")\n"; } void visitCallInst(CallInst &I)                {
-  // errs() << "CallInst(" << lineNum(I) << ")\n"; } void
+  // LLVM_DEBUG(dbgs() << "CallInst(" << lineNum(I) << ")\n"); } void
   // visitInvokeInst(InvokeInst &I)            { errs() << "InvokeInst(" <<
   // lineNum(I) << ")\n"; } void visitCallBrInst(CallBrInst &I)            {
-  // errs() << "CallBrInst(" << lineNum(I) << ")\n"; }
+  // LLVM_DEBUG(dbgs() << "CallBrInst(" << lineNum(I) << ")\n"); }
 
   // void visitICmpInst(ICmpInst &I)                { errs() << "ICmpInst(" <<
   // lineNum(I) << ")\n";} void visitFCmpInst(FCmpInst &I)                {
-  // errs() << "FCmpInst(" << lineNum(I) << ")\n";} void
+  // LLVM_DEBUG(dbgs() << "FCmpInst(" << lineNum(I) << ")\n");} void
   // visitAllocaInst(AllocaInst &I)            { errs() << "AllocaInst(" <<
   // lineNum(I) << ")\n";} void visitLoadInst(LoadInst     &I)            {
-  // errs() << "LoadInst(" << lineNum(I) << ")\n";} void
+  // LLVM_DEBUG(dbgs() << "LoadInst(" << lineNum(I) << ")\n");} void
   // visitStoreInst(StoreInst   &I)            { errs() << "StoreInst(" <<
   // lineNum(I) << ")\n";} void visitAtomicCmpXchgInst(AtomicCmpXchgInst &I) {
-  // errs() << "AtomicCmpXchgInst(" << lineNum(I) << ")\n";} void
+  // LLVM_DEBUG(dbgs() << "AtomicCmpXchgInst(" << lineNum(I) << ")\n");} void
   // visitAtomicRMWInst(AtomicRMWInst &I)      { errs() << "AtomicRMWInst(" <<
   // lineNum(I) << ")\n";} void visitFenceInst(FenceInst   &I)            {
-  // errs() << "FenceInst(" << lineNum(I) << ")\n";} void
+  // LLVM_DEBUG(dbgs() << "FenceInst(" << lineNum(I) << ")\n");} void
   // visitGetElementPtrInst(GetElementPtrInst &I){ errs() <<
   // "GetElementPtrInst(" << lineNum(I) << ")\n";} void visitPHINode(PHINode &I)
   // { errs() << "PHINode(" << lineNum(I) << ")\n";} void
   // visitTruncInst(TruncInst &I)              { errs() << "TruncInst(" <<
   // lineNum(I) << ")\n";} void visitZExtInst(ZExtInst &I)                {
-  // errs() << "ZExtInst(" << lineNum(I) << ")\n";} void visitSExtInst(SExtInst
-  // &I)                { errs() << "SExtInst(" << lineNum(I) << ")\n";} void
-  // visitFPTruncInst(FPTruncInst &I)          { errs() << "FPTruncInst(" <<
-  // lineNum(I) << ")\n";} void visitFPExtInst(FPExtInst &I)              {
-  // errs() << "FPExtInst(" << lineNum(I) << ")\n";} void
-  // visitFPToUIInst(FPToUIInst &I)            { errs() << "FPToUIInst(" <<
-  // lineNum(I) << ")\n";} void visitFPToSIInst(FPToSIInst &I)            {
-  // errs() << "FPToSIInst(" << lineNum(I) << ")\n";} void
-  // visitUIToFPInst(UIToFPInst &I)            { errs() << "UIToFPInst(" <<
-  // lineNum(I) << ")\n";} void visitSIToFPInst(SIToFPInst &I)            {
-  // errs() << "SIToFPInst(" << lineNum(I) << ")\n";} void
-  // visitPtrToIntInst(PtrToIntInst &I)        { errs() << "PtrToIntInst(" <<
-  // lineNum(I) << ")\n";} void visitIntToPtrInst(IntToPtrInst &I)        {
-  // errs() << "IntToPtrInst(" << lineNum(I) << ")\n";} void
-  // visitBitCastInst(BitCastInst &I)          { errs() << "BitCastInst(" <<
-  // lineNum(I) << ")\n";} void visitAddrSpaceCastInst(AddrSpaceCastInst &I) {
-  // errs() << "AddrSpaceCastInst(" << lineNum(I) << ")\n";} void
+  // LLVM_DEBUG(dbgs() << "ZExtInst(" << lineNum(I) << ")\n");} void
+  // visitSExtInst(SExtInst &I)                { errs() << "SExtInst(" <<
+  // lineNum(I) << ")\n";} void visitFPTruncInst(FPTruncInst &I)          {
+  // errs() << "FPTruncInst(" << lineNum(I) << ")\n";} void
+  // visitFPExtInst(FPExtInst &I)              { LLVM_DEBUG(dbgs() <<
+  // "FPExtInst(" << lineNum(I) << ")\n");} void visitFPToUIInst(FPToUIInst &I)
+  // { errs() << "FPToUIInst(" << lineNum(I) << ")\n";} void
+  // visitFPToSIInst(FPToSIInst &I)            { LLVM_DEBUG(dbgs() <<
+  // "FPToSIInst(" << lineNum(I) << ")\n");} void visitUIToFPInst(UIToFPInst &I)
+  // { errs() << "UIToFPInst(" << lineNum(I) << ")\n";} void
+  // visitSIToFPInst(SIToFPInst &I)            { LLVM_DEBUG(dbgs() <<
+  // "SIToFPInst(" << lineNum(I) << ")\n");} void visitPtrToIntInst(PtrToIntInst
+  // &I)        { errs() << "PtrToIntInst(" << lineNum(I) << ")\n";} void
+  // visitIntToPtrInst(IntToPtrInst &I)        { LLVM_DEBUG(dbgs() <<
+  // "IntToPtrInst(" << lineNum(I) << ")\n");} void visitBitCastInst(BitCastInst
+  // &I)          { errs() << "BitCastInst(" << lineNum(I) << ")\n";} void
+  // visitAddrSpaceCastInst(AddrSpaceCastInst &I) { LLVM_DEBUG(dbgs() <<
+  // "AddrSpaceCastInst(" << lineNum(I) << ")\n");} void
   // visitSelectInst(SelectInst &I)            { errs() << "SelectInst(" <<
   // lineNum(I) << ")\n";} void visitVAArgInst(VAArgInst   &I)            {
-  // errs() << "VAArgInst(" << lineNum(I) << ")\n";} void
+  // LLVM_DEBUG(dbgs() << "VAArgInst(" << lineNum(I) << ")\n");} void
   // visitExtractElementInst(ExtractElementInst &I) { errs() <<
   // "ExtractElementInst(" << lineNum(I) << ")\n";} void
   // visitInsertElementInst(InsertElementInst &I) { errs() <<
@@ -241,7 +242,7 @@ struct KeyPointVisitor : public InstVisitor<KeyPointVisitor> {
   // "ShuffleVectorInst(" << lineNum(I) << ")\n";} void
   // visitExtractValueInst(ExtractValueInst &I){ errs() << "ExtractValueInst("
   // << lineNum(I) << ")\n";} void visitInsertValueInst(InsertValueInst &I)  {
-  // errs() << "InsertValueInst(" << lineNum(I) << ")\n"; } void
+  // LLVM_DEBUG(dbgs() << "InsertValueInst(" << lineNum(I) << ")\n"); } void
   // visitLandingPadInst(LandingPadInst &I)    { errs() << "LandingPadInst(" <<
   // lineNum(I) << ")\n"; } void visitFuncletPadInst(FuncletPadInst &I) { errs()
   // << "FuncletPadInst(" << lineNum(I) << ")\n"; } void
@@ -252,17 +253,18 @@ struct KeyPointVisitor : public InstVisitor<KeyPointVisitor> {
   // lineNum(I) << ")\n"; }
 
   // void visitBranchInst(BranchInst &BI) {
-  //   errs() << "BI found: ";
+  // LLVM_DEBUG(dbgs() << "BI found: ");
   //   printInstructionSrc(BI);
   //   // if(BI.isConditional()) {
-  //   //   errs() << "\n";
+  //   // LLVM_DEBUG(dbgs() << "\n");
   //   //   printInstructionSrc(BI);
   //   //   conditionalBranches.insert(&BI);
-  //   //   errs() << "\n---\nUseDef:\n";
+  //   // LLVM_DEBUG(dbgs() << "\n---\nUseDef:\n");
   //   //   printUseDef(BI);
-  //   //   errs() << "\n---\n";
+  //   // LLVM_DEBUG(dbgs() << "\n---\n");
   //   // } else {
-  //   //   errs() << "not conditional type=" << BI.getValueName() << "\n";
+  //   // LLVM_DEBUG(dbgs() << "not conditional type=" << BI.getValueName() <<
+  //   "\n");
   //   // }
   // }
 
@@ -287,16 +289,16 @@ struct KeyPointVisitor : public InstVisitor<KeyPointVisitor> {
       // Value *retVal =
 
       // for(auto U: CI.users()) {
-      //   errs() << "u";
+      // LLVM_DEBUG(dbgs() << "u");
       //   if(auto BI = dyn_cast<BranchInst>(U)) {
-      //     errs() << "\t BRANCH: ";
+      // LLVM_DEBUG(dbgs() << "\t BRANCH: ");
       //     printInstructionSrc(*BI);
       //   } else if(auto I = dyn_cast<Instruction>(U)) {
 
-      //     errs() << "\t OTHER: ";
+      // LLVM_DEBUG(dbgs() << "\t OTHER: ");
       //     printInstructionSrc(*I);
       //   } else {
-      //     errs() << "\t???: " << U->getNameOrAsOperand() << "\n";
+      // LLVM_DEBUG(dbgs() << "\t???: " << U->getNameOrAsOperand() << "\n");
       //   }
       // }
     }

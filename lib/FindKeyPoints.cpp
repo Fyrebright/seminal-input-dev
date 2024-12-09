@@ -14,13 +14,92 @@
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include <cstdlib>
 #include <string>
 
+#ifndef DEBUG_TYPE
+#define DEBUG_TYPE "find-key-pts"
+#endif // DEBUG_TYPE
+
 using namespace llvm;
+
+static constexpr char PassArg[] = "find-key-pts";
+static constexpr char PluginName[] = "FindKeyPoints";
+
+//------------------------------------------------------------------------------
+// FindKeyPoints implementation
+//------------------------------------------------------------------------------
+
+FindKeyPoints::Result inputValues(CallInst &I, StringRef name) {
+  return FindKeyPoints::Result{};
+}
+
+struct KeyPointVisitor : public InstVisitor<KeyPointVisitor> {
+  FindKeyPoints::Result res{};
+
+  void visitBranchInst(BranchInst &I) {
+    // LLVM_DEBUG(dbgs() << "BI found (" << utils::lineNum(I) << "): ");
+    if(I.isConditional()) {
+      // LLVM_DEBUG(dbgs() << "\n");
+      //   utils::printInstructionSrc(errs(), I);
+      res.keyPoints.insert(&I);
+    } else {
+      // LLVM_DEBUG(dbgs() << "not conditional type=" << I.getValueName() <<
+      // "\n");
+    }
+  }
+
+  void visitSwitchInst(SwitchInst &I) {
+    if(I.getCondition()) {
+      // Not sure if there is another case here
+      res.keyPoints.insert(&I);
+    } else {
+      // Just in case, I want to know
+      errs() << "\n***ERROR***\n";
+      errs() << "SwitchInst(" << utils::lineNum(I) << "): no condition\n";
+      errs() << "***********\n\n";
+      exit(1111);
+    }
+  }
+
+  //// TODO: these may be needed
+  void visitCallBrInst(CallBrInst &I) {
+    // LLVM_DEBUG(dbgs() << "CallBrInst(" << utils::lineNum(I) << ")\n";);
+  }
+  void visitICmpInst(ICmpInst &I) {
+    // LLVM_DEBUG(dbgs() << "ICmpInst(" << utils::lineNum(I) << ")\n";);
+  }
+  void visitFCmpInst(FCmpInst &I) {
+    // LLVM_DEBUG(dbgs() << "FCmpInst(" << utils::lineNum(I) << ")\n";);
+  }
+
+  void visitCallInst(CallInst &I) {
+    // Check if callee is a function pointer
+    //// NOTE: also could check if can get function name
+    ////       if not, then it's a function pointer
+    if(I.isIndirectCall()) {
+      res.keyPoints.insert(&I);
+    }
+  }
+};
+
+FindKeyPoints::Result FindKeyPoints::run(Function &F,
+                                         FunctionAnalysisManager &FAM) {
+  Result Res = FindKeyPoints::Result{};
+  KeyPointVisitor KPV{};
+
+  KPV.visit(F);
+
+  return KPV.res;
+}
+
+//------------------------------------------------------------------------------
+// FindKeyPointsPrinter implementation
+//------------------------------------------------------------------------------
 
 static void printKeyPoints(raw_ostream &OS,
                            Function &Func,
@@ -43,76 +122,16 @@ static void printKeyPoints(raw_ostream &OS,
   // Print instruction for each value in res.KeyPointsMetadata
   for(const auto &I: res.keyPoints) {
     OS << "\t" << utils::getInstructionSrc(*I) << "\n";
-  }
-}
 
-static constexpr char PassArg[] = "find-key-pts";
-static constexpr char PluginName[] = "FindKeyPoints";
-
-//------------------------------------------------------------------------------
-// FindKeyPoints implementation
-//------------------------------------------------------------------------------
-
-FindKeyPoints::Result inputValues(CallInst &I, StringRef name) {
-  return FindKeyPoints::Result{};
-}
-
-struct KeyPointVisitor : public InstVisitor<KeyPointVisitor> {
-  FindKeyPoints::Result res{};
-
-  void visitBranchInst(BranchInst &I) {
-    // errs() << "BI found (" << utils::lineNum(I) << "): ";
-    if(I.isConditional()) {
-      //   errs() << "\n";
-      //   utils::printInstructionSrc(errs(), I);
-      res.keyPoints.insert(&I);
-    } else {
-      //   errs() << "not conditional type=" << I.getValueName() << "\n";
+    // Print operands of instruction
+    // LLVM_DEBUG(
+    OS << "\t\tOperands: ";
+    for(Use &U: I->operands()) {
+      OS << U->getName() << ", ";
     }
+    OS << "\n";
+    // );
   }
-
-  void visitSwitchInst(SwitchInst &I) {
-    if(I.getCondition()) {
-      // Not sure if there is another case here
-      res.keyPoints.insert(&I);
-    } else {
-        // Just in case, I want to know
-        errs() << "\n***ERROR***\n";
-        errs() << "SwitchInst(" << utils::lineNum(I) << "): no condition\n";
-        errs() << "***********\n\n";
-        exit(1111);
-    }
-  }
-
-  //// TODO: these may be needed
-  // void visitCallBrInst(CallBrInst &I) {
-  //   errs() << "CallBrInst(" << utils::lineNum(I) << ")\n";
-  // }
-  // void visitICmpInst(ICmpInst &I) {
-  //   errs() << "ICmpInst(" << utils::lineNum(I) << ")\n";
-  // }
-  // void visitFCmpInst(FCmpInst &I) {
-  //   errs() << "FCmpInst(" << utils::lineNum(I) << ")\n";
-  // }
-
-  void visitCallInst(CallInst &I) {
-    // Check if callee is a function pointer
-    //// NOTE: also could check if can get function name
-    ////       if not, then it's a function pointer
-    if(I.isIndirectCall()) {
-      res.keyPoints.insert(&I);
-    }
-  }
-};
-
-FindKeyPoints::Result FindKeyPoints::run(Function &F,
-                                         FunctionAnalysisManager &FAM) {
-  Result Res = FindKeyPoints::Result{};
-  KeyPointVisitor KPV{};
-
-  KPV.visit(F);
-
-  return KPV.res;
 }
 
 PreservedAnalyses FindKeyPointsPrinter::run(Function &F,

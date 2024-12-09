@@ -1,8 +1,12 @@
-#include "llvm/IR/Function.h"
-#include "llvm/IR/PassManager.h"
-#include "llvm/IR/Instruction.h"
-#include "llvm/Pass.h"
+#ifndef __412PROJ_FIND_IO_VALS_H
+#define __412PROJ_FIND_IO_VALS_H
+
 #include "utils.h"
+
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Instruction.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/Pass.h"
 
 #include <set>
 #include <vector>
@@ -17,34 +21,33 @@ class raw_ostream;
 
 } // namespace llvm
 
-const std::set<llvm::StringRef> INPUT_FUNCTIONS{
-    // "fdopen",
-    "fgetc",
-    // "fgetpos",
-    "fgets",
-    "fopen",
-    "fread",
-    // "freopen",
-    "fscanf",
-    "getc",
-    "getc_unlocked",
-    "getchar",
-    "getchar_unlocked",
-    "getopt",
-    "gets",
-    "getw",
-    // "popen",
-    "scanf",
-    "sscanf",
-    "ungetc","getenv"
-};
+const std::set<llvm::StringRef> INPUT_FUNCTIONS{// "fdopen",
+                                                "fgetc",
+                                                // "fgetpos",
+                                                "fgets",
+                                                "fopen",
+                                                "fread",
+                                                // "freopen",
+                                                "fscanf",
+                                                "getc",
+                                                "getc_unlocked",
+                                                "getchar",
+                                                "getchar_unlocked",
+                                                "getopt",
+                                                "gets",
+                                                "getw",
+                                                // "popen",
+                                                "scanf",
+                                                "sscanf",
+                                                "ungetc",
+                                                "getenv"};
 
 inline bool isInputFunc(llvm::Function &F, llvm::StringRef &name) {
   name = F.getName();
 
   // Remove prefix if present
   name.consume_front("__isoc99_");
-  // errs() << "after consume " << name << "\n";
+  // LLVM_DEBUG(llvm::dbgs() << "after consume " << name << "\n");
 
   return INPUT_FUNCTIONS.find(name) != INPUT_FUNCTIONS.cend();
 }
@@ -96,7 +99,7 @@ struct FuncReturnIO : public llvm::AnalysisInfoMixin<FuncReturnIO> {
    * @brief Functions with retvals dependent on input
    */
   class Result {
-    public:
+  public:
     bool returnIsIO;
 
     // bool invalidate(llvm::Function &F, const llvm::PreservedAnalyses &PA,
@@ -124,3 +127,5 @@ public:
 private:
   llvm::raw_ostream &OS;
 };
+
+#endif // __412PROJ_FIND_IO_VALS_H

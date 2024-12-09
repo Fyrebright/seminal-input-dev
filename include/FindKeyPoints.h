@@ -1,11 +1,14 @@
-#include "llvm/IR/Function.h"
-#include "llvm/IR/PassManager.h"
-#include "llvm/IR/Instruction.h"
-#include "llvm/Pass.h"
+#ifndef __412PROJ_FIND_KEY_POINTS_H
+#define __412PROJ_FIND_KEY_POINTS_H
+
 #include "utils.h"
 
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Instruction.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/Pass.h"
+
 #include <set>
-#include <vector>
 
 // Forward declarations
 namespace llvm {
@@ -16,8 +19,6 @@ class Module;
 class raw_ostream;
 
 } // namespace llvm
-
-
 
 //------------------------------------------------------------------------------
 // New PM interface
@@ -55,7 +56,8 @@ private:
 //------------------------------------------------------------------------------
 class FindKeyPointsPrinter : public llvm::PassInfoMixin<FindKeyPointsPrinter> {
 public:
-  explicit FindKeyPointsPrinter(llvm::raw_ostream &OutStream) : OS(OutStream) {};
+  explicit FindKeyPointsPrinter(llvm::raw_ostream &OutStream)
+      : OS(OutStream) {};
 
   llvm::PreservedAnalyses run(llvm::Function &Func,
                               llvm::FunctionAnalysisManager &FAM);
@@ -63,3 +65,5 @@ public:
 private:
   llvm::raw_ostream &OS;
 };
+
+#endif // __412PROJ_FIND_KEY_POINTS_H

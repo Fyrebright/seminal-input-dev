@@ -1,9 +1,12 @@
-#ifndef UTILS_H
-#define UTILS_H
+#ifndef __412PROJ_UTILS_H
+#define __412PROJ_UTILS_H
 
 #include "llvm/IR/Instruction.h"
 #include "llvm/Pass.h"
 
+// #ifndef DEBUG_TYPE
+// #define DEBUG_TYPE "dev"
+// #endif // DEBUG_TYPE
 
 // Forward declarations
 namespace llvm {
@@ -31,4 +34,4 @@ unsigned int lineNum(llvm::Instruction &I);
 
 } // namespace utils
 
-#endif // UTILS_H
+#endif // __412PROJ_UTILS_H

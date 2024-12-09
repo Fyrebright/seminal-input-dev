@@ -3,8 +3,10 @@
  * @brief
  * @see \link https://github.com/banach-space/llvm-tutor \endlink
  */
-#ifndef LLVM_TUTOR_RIV_H
-#define LLVM_TUTOR_RIV_H
+#ifndef __412PROJ_FIND_INPUT_VALUES_H
+#define __412PROJ_FIND_INPUT_VALUES_H
+
+#include "utils.h"
 
 #include "llvm/ADT/MapVector.h"
 #include "llvm/ADT/SmallPtrSet.h"
@@ -14,7 +16,6 @@
 #include "llvm/IR/PassManager.h"
 #include "llvm/IR/Value.h"
 #include "llvm/Pass.h"
-#include "utils.h"
 
 #include <set>
 
@@ -41,7 +42,8 @@ const std::set<llvm::StringRef> INPUT_FUNCTIONS{
 };
 
 inline bool isLibFunc(llvm::Function &F, llvm::TargetLibraryInfo &TLI) {
-  // errs() << "checking if " << F.getName() << " is a LibFunc\n";
+  // LLVM_DEBUG(llvm::dbgs() << "checking if " << F.getName() << " is a
+  // LibFunc\n");
 
   // if(EVIL_FUNCTIONS.find(F.getName()) != EVIL_FUNCTIONS.cend()) {
   //   return true;
@@ -56,7 +58,7 @@ inline bool isInputFunc(llvm::Function &F, llvm::StringRef &name) {
 
   // Remove prefix if present
   name.consume_front("__isoc99_");
-  // errs() << "after consume " << name << "\n";
+  // LLVM_DEBUG(llvm::dbgs() << "after consume " << name << "\n");
 
   return INPUT_FUNCTIONS.find(name) != INPUT_FUNCTIONS.cend();
 }
@@ -67,13 +69,14 @@ struct FindInputValues : public llvm::AnalysisInfoMixin<FindInputValues> {
    */
 
   struct InputValuesInfo {
-    public:
+  public:
     std::vector<llvm::Value *> inputVals;
 
-    bool invalidate(llvm::Module &M, const llvm::PreservedAnalyses &PA,
-                  llvm::ModuleAnalysisManager::Invalidator &Inv) {
-                    return false;
-                  }
+    bool invalidate(llvm::Module &M,
+                    const llvm::PreservedAnalyses &PA,
+                    llvm::ModuleAnalysisManager::Invalidator &Inv) {
+      return false;
+    }
   };
 
   using Result = InputValuesInfo;
@@ -86,12 +89,13 @@ private:
   friend struct llvm::AnalysisInfoMixin<FindInputValues>;
 };
 
-struct FindInputReturnFunctions : public llvm::AnalysisInfoMixin<FindInputReturnFunctions> {
+struct FindInputReturnFunctions
+    : public llvm::AnalysisInfoMixin<FindInputReturnFunctions> {
   /**
    * @brief Functions with retvals dependent on input
    */
   class Result {
-    public:
+  public:
     bool returnIsInput;
 
     // bool invalidate(llvm::Function &F, const llvm::PreservedAnalyses &PA,
@@ -116,4 +120,4 @@ private:
   llvm::raw_ostream &OS;
 };
 
-#endif // LLVM_TUTOR_RIV_H
+#endif // __412PROJ_FIND_INPUT_VALUES_H

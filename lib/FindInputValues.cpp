@@ -1,4 +1,5 @@
 #include "FindInputValues.h"
+
 #include "utils.h"
 
 #include "llvm/Analysis/TargetLibraryInfo.h"
@@ -48,7 +49,7 @@ std::vector<Value *> inputValues(CallInst &I, StringRef name) {
 
   // Finally, add retval
   if(auto retval = dyn_cast_if_present<Value>(&I)) {
-    vals.push_back(retval); 
+    vals.push_back(retval);
 
     for(auto U: I.users()) {
       if(auto SI = dyn_cast<StoreInst>(U)) {
@@ -69,13 +70,14 @@ bool printDefUse(raw_ostream &OutS, Value &V) {
 
     if(isa<ICmpInst>(U) || isa<BranchInst>(U)) {
       auto *I = cast<Instruction>(U);
-      OutS << "***" << V.getName() << ": (" << utils::getInstructionSrc(*I) << ")";
+      OutS << "***" << V.getName() << ": (" << utils::getInstructionSrc(*I)
+           << ")";
       // printInstructionSrc(OutS, *I);
       // OutS << "\t";
       return true;
       // } else if(auto SI = dyn_cast<StoreInst>(U)) {
-      //   errs() << "boi";
-      //   errs() << SI->getPointerOperand()->getName();
+      // LLVM_DEBUG(dbgs() << "boi");
+      // LLVM_DEBUG(dbgs() << SI->getPointerOperand()->getName());
       //   // printDefUse(OutS, *SI->getValueOperand());
     } else { // if(auto *I = dyn_cast<Instruction>(U)) {
       // printInstructionSrc(OutS, *cast<Instruction>(U));
@@ -116,8 +118,7 @@ struct InputCallVisitor : public InstVisitor<InputCallVisitor> {
       StringRef name;
       if(isLibFunc(*F, TLI) && isInputFunc(*F, name)) {
         auto vals = inputValues(CI, name);
-        ioVals.insert(
-            ioVals.end(), vals.begin(), vals.end());
+        ioVals.insert(ioVals.end(), vals.begin(), vals.end());
       }
     }
   }

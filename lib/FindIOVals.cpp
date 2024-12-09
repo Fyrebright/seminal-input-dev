@@ -4,8 +4,8 @@
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Analysis/CGSCCPassManager.h"
 #include "llvm/IR/Function.h"
-#include "llvm/IR/InstIterator.h"
 #include "llvm/IR/InstVisitor.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
@@ -14,10 +14,15 @@
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Compiler.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/FormatVariadic.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include <string>
+
+#ifndef DEBUG_TYPE
+#define DEBUG_TYPE "find-io-vals"
+#endif // DEBUG_TYPE
 
 using namespace llvm;
 
@@ -104,7 +109,7 @@ FindIOVals::Result FindIOVals::run(Function &F) {
   Res = ICV.res;
 
   // Add argument values to result
-  if (F.getName() == "main") {
+  if(F.getName() == "main") {
     for(auto &arg: F.args()) {
       Res.ioVals.insert(&arg);
       Res.ioValsMetadata.push_back({&arg, nullptr, "main"});
@@ -119,25 +124,27 @@ FindIOVals::Result FindIOVals::run(Function &F) {
 //-----------------------------------------------------------------------------
 
 bool usesInputVal(Instruction &I, std::set<Value *> &ioVals) {
-  // errs() << "Checking ...\n";
+  // LLVM_DEBUG(dbgs() << "Checking ...\n");
   for(Use &U: I.operands()) {
-    // errs() << "User " << U.get()->getName() << "\n";
-    // if (auto instU = dyn_cast<Instruction>(U)) {
-    //   errs() << "\tLine num: " << utils::lineNum(*instU) << "\n";
-    //   utils::printInstructionSrc(errs(), *instU);
-    // } else {
-    //   errs() << "Not an instruction\n";
-    // }
+    // LLVM_DEBUG(dbgs() << "User " << U.get()->getName() << "\n");
+    // LLVM_DEBUG(
+    if(auto instU = dyn_cast<Instruction>(U)) {
+      (dbgs() << "\tLine num: " << utils::lineNum(*instU) << "\n");
+      utils::printInstructionSrc(errs(), *instU);
+    } else {
+      dbgs() << "Not an instruction\n";
+    }
+    // );
 
     if(auto V = dyn_cast<Value>(U)) {
       // Check if in input values
       if(ioVals.find(V) != ioVals.cend()) {
-        // errs() << "FOUNDIT";
+        // LLVM_DEBUG(dbgs() << "FOUNDIT");
         return true;
       } else if(auto uI = dyn_cast<Instruction>(U)) {
-        // errs() << "sadge:";
+        // LLVM_DEBUG(dbgs() << "sadge:");
         // utils::printInstructionSrc(errs(), *uI);
-        // errs() << "Checking next...\n";
+        // LLVM_DEBUG(dbgs() << "Checking next...\n");
         if(usesInputVal(*uI, ioVals)) {
           return true;
         }
@@ -154,9 +161,9 @@ struct ReturnVisitor : public InstVisitor<ReturnVisitor> {
 
   void visitReturnInst(ReturnInst &RI) {
     // If any return value is dependent on input, set res.returnIsInput to true
-    if(auto inst = dyn_cast<Instruction>(&RI))
-    {res.returnIsIO =
-        res.returnIsIO || usesInputVal(*inst, ioVals);}
+    if(auto inst = dyn_cast<Instruction>(&RI)) {
+      res.returnIsIO = res.returnIsIO || usesInputVal(*inst, ioVals);
+    }
   }
 };
 
@@ -170,7 +177,7 @@ FuncReturnIO::Result FuncReturnIO::run(Function &F,
   auto ioVals = FAM.getCachedResult<FindIOVals>(F)->ioVals;
 
   // If no IO values, no need to check return values
-  if (ioVals.empty()) {
+  if(ioVals.empty()) {
     return FuncReturnIO::Result{false};
   }
 
@@ -206,10 +213,10 @@ static void printIOVals(raw_ostream &OS,
   // Print instruction for each value in res.ioValsMetadata
   for(const auto &IOVal: findIOValuesResult.ioValsMetadata) {
     OS << "Value " << IOVal.val->getName();
-    
+
     // Check if inst is null (like arg to main) before trying to print
     if(IOVal.inst) {
-       OS << " defined at: " << utils::getInstructionSrc(*IOVal.inst);
+      OS << " defined at: " << utils::getInstructionSrc(*IOVal.inst);
     }
 
     OS << "\n";
