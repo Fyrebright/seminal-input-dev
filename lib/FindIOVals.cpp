@@ -101,8 +101,16 @@ FindIOVals::Result FindIOVals::run(Function &F) {
   InputCallVisitor ICV{};
 
   ICV.visit(&F);
-
   Res = ICV.res;
+
+  // Add argument values to result
+  if (F.getName() == "main") {
+    for(auto &arg: F.args()) {
+      Res.ioVals.insert(&arg);
+      Res.ioValsMetadata.push_back({&arg, nullptr, "main"});
+    }
+  }
+
   return Res;
 }
 
@@ -114,9 +122,12 @@ bool usesInputVal(Instruction &I, std::set<Value *> &ioVals) {
   // errs() << "Checking ...\n";
   for(Use &U: I.operands()) {
     // errs() << "User " << U.get()->getName() << "\n";
-    if (auto instU = dyn_cast<Instruction>(U)) {
-        // utils::printInstructionSrc(errs(), *instU);
-    }
+    // if (auto instU = dyn_cast<Instruction>(U)) {
+    //   errs() << "\tLine num: " << utils::lineNum(*instU) << "\n";
+    //   utils::printInstructionSrc(errs(), *instU);
+    // } else {
+    //   errs() << "Not an instruction\n";
+    // }
 
     if(auto V = dyn_cast<Value>(U)) {
       // Check if in input values
@@ -126,6 +137,7 @@ bool usesInputVal(Instruction &I, std::set<Value *> &ioVals) {
       } else if(auto uI = dyn_cast<Instruction>(U)) {
         // errs() << "sadge:";
         // utils::printInstructionSrc(errs(), *uI);
+        // errs() << "Checking next...\n";
         if(usesInputVal(*uI, ioVals)) {
           return true;
         }
@@ -142,8 +154,9 @@ struct ReturnVisitor : public InstVisitor<ReturnVisitor> {
 
   void visitReturnInst(ReturnInst &RI) {
     // If any return value is dependent on input, set res.returnIsInput to true
-    res.returnIsInput =
-        res.returnIsInput || usesInputVal(cast<Instruction>(RI), ioVals);
+    if(auto inst = dyn_cast<Instruction>(&RI))
+    {res.returnIsIO =
+        res.returnIsIO || usesInputVal(*inst, ioVals);}
   }
 };
 
@@ -155,6 +168,11 @@ FuncReturnIO::Result FuncReturnIO::run(Function &F,
   }
 
   auto ioVals = FAM.getCachedResult<FindIOVals>(F)->ioVals;
+
+  // If no IO values, no need to check return values
+  if (ioVals.empty()) {
+    return FuncReturnIO::Result{false};
+  }
 
   ReturnVisitor RV{.ioVals = ioVals};
   RV.visit(F);
@@ -174,7 +192,7 @@ static void printIOVals(raw_ostream &OS,
   if(findIOValuesResult.ioVals.empty()) {
     OS << " None\n";
     return;
-  } else if(ioFunctionResult.returnIsInput) {
+  } else if(ioFunctionResult.returnIsIO) {
     OS << " ** RETURNS IO **\n";
   } else {
     OS << "** DOES NOT RETURN IO **\n";
@@ -187,8 +205,14 @@ static void printIOVals(raw_ostream &OS,
 
   // Print instruction for each value in res.ioValsMetadata
   for(const auto &IOVal: findIOValuesResult.ioValsMetadata) {
-    OS << "Value " << IOVal.val->getName()
-       << " defined at: " << utils::getInstructionSrc(*IOVal.inst) << "\n";
+    OS << "Value " << IOVal.val->getName();
+    
+    // Check if inst is null (like arg to main) before trying to print
+    if(IOVal.inst) {
+       OS << " defined at: " << utils::getInstructionSrc(*IOVal.inst);
+    }
+
+    OS << "\n";
   }
 
   // for(Value *V: res.ioVals) {

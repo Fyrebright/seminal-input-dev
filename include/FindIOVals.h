@@ -97,7 +97,7 @@ struct FuncReturnIO : public llvm::AnalysisInfoMixin<FuncReturnIO> {
    */
   class Result {
     public:
-    bool returnIsInput;
+    bool returnIsIO;
 
     // bool invalidate(llvm::Function &F, const llvm::PreservedAnalyses &PA,
     //               llvm::FunctionAnalysisManager::Invalidator &Inv);
