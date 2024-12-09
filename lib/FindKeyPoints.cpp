@@ -34,10 +34,6 @@ static constexpr char PluginName[] = "FindKeyPoints";
 // FindKeyPoints implementation
 //------------------------------------------------------------------------------
 
-FindKeyPoints::Result inputValues(CallInst &I, StringRef name) {
-  return FindKeyPoints::Result{};
-}
-
 struct KeyPointVisitor : public InstVisitor<KeyPointVisitor> {
   FindKeyPoints::Result res{};
 

@@ -16,6 +16,7 @@
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/FormatVariadic.h"
+#include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include <string>
@@ -124,13 +125,19 @@ FindIOVals::Result FindIOVals::run(Function &F) {
 //-----------------------------------------------------------------------------
 
 bool usesInputVal(Instruction &I, std::set<Value *> &ioVals) {
+  // Track visited instructions to avoid infinite recursion
+  static std::set<Instruction *> visited{};
+
   // LLVM_DEBUG(dbgs() << "Checking ...\n");
   for(Use &U: I.operands()) {
-    // LLVM_DEBUG(dbgs() << "User " << U.get()->getName() << "\n");
+    // Add to visited set
+    visited.insert(&I);
+
     // LLVM_DEBUG(
+    dbgs() << "User " << U.get()->getName() << "\n";
     if(auto instU = dyn_cast<Instruction>(U)) {
-      (dbgs() << "\tLine num: " << utils::lineNum(*instU) << "\n");
-      utils::printInstructionSrc(errs(), *instU);
+      dbgs() << "\tLine num: " << utils::lineNum(*instU) << "\n";
+      // utils::printInstructionSrc(errs(), *instU);
     } else {
       dbgs() << "Not an instruction\n";
     }
@@ -138,13 +145,30 @@ bool usesInputVal(Instruction &I, std::set<Value *> &ioVals) {
 
     if(auto V = dyn_cast<Value>(U)) {
       // Check if in input values
+
+      // // Want to see if this is the bottleneck
+      // dbgs() << "find...";
+      // Timer T("findtime", "findtime");
+      // T.startTimer();
+      // auto findres = ioVals.find(V);
+      // dbgs() << "done in " << T.getTotalTime().getWallTime() << "s\n";
+      // T.stopTimer();
+
       if(ioVals.find(V) != ioVals.cend()) {
         // LLVM_DEBUG(dbgs() << "FOUNDIT");
         return true;
       } else if(auto uI = dyn_cast<Instruction>(U)) {
+        dbgs() << "done\n";
         // LLVM_DEBUG(dbgs() << "sadge:");
         // utils::printInstructionSrc(errs(), *uI);
-        // LLVM_DEBUG(dbgs() << "Checking next...\n");
+        dbgs() << "Checking next...\n";
+
+        // Check if visited
+        if(visited.find(uI) != visited.cend()) {
+          continue;
+        }
+
+        // Otherwise, descend
         if(usesInputVal(*uI, ioVals)) {
           return true;
         }

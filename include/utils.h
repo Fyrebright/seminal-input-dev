@@ -30,7 +30,7 @@ inline void printInstructionSrc(llvm::raw_ostream &OutS, llvm::Instruction &I) {
   OutS.flush();
 }
 
-unsigned int lineNum(llvm::Instruction &I);
+int lineNum(llvm::Instruction &I);
 
 } // namespace utils
 
