@@ -2,7 +2,7 @@
 
 ## Summary
 
-This is an out-of-tree pass using the template from [sampsyo/llvm-pass-skeleton](https://github.com/sampsyo/llvm-pass-skeleton).
+This is an out-of-tree pass organized as in [banach-space/llvm-tutor](https://github.com/banach-space/llvm-tutor).
 
 **LLVM / Clang Version:** 19.1.2
 
@@ -23,11 +23,13 @@ todo out
 
 ## Building
 
-This project builds a shared object library that can be loaded by `clang` or `opt`. It is not necessary to modify / add files in your LLVM source, however, you may need to set some variables as described in [Config](###Config)
+This project builds a shared object library that can be loaded by  `opt`. It is not necessary to modify / add files in your LLVM source, however, you may need to set some variables as described in [Config](###Config)
 
-### Configuration
+### Config
 
-TODO
+The `.envrc` is what I used to configure environment variables for both building LLVM and while developing the project. The variables are commented and I think most can be ignored but sometimes `LLVM_DIR` needs to be set for `LLVM REQUIRED CONFIG` to work. 
+
+Obviously, also need to make sure headers are visible. Might need to change `LLVM_HOME` since I made it `~/.local` instead of `/usr/local`
 
 ### Building Passes
 
@@ -40,14 +42,44 @@ cmake --build build/
 
 ### Running Passes
 
-#### With `clang`
+#### The easy way
+
+I have a script ready that will build and run the passes on a specified C source file.
+
+To run the seminal input detection:
 
 ```sh
-clang -g -O0 -fpass-plugin=build/branch-ptr-trace/PrintBranchPass.so examples/hello.c -o /tmp/a.out
-clang -g -O0 -fno-discard-value-names -fpass-plugin=build/branch-ptr-trace/PrintBranchPass.so examples/example2-1.c -o /tmp/a.out
+./inline_run.sh C_SRC.c
 ```
 
+To see output for the other passes or the def-use graph that I used for debugging you can optionally specify a MODE argument
+
+```sh
+./inline_run.sh C_SRC.c MODE
 ```
-clang -g -O0 -Xclang -disable-O0-optnone examples/assign_chain.c -fno-discard-value-names -emit-llvm -S 
-opt -load-pass-plugin=build/key-pts/FindInputVals.so -passes='function(mem2reg),print<input-vals>' assign_chain.ll -disable-output -debug-pass-manager
+
+**Modes:** 
+* 0: `print<input-vals>` (old)
+* 1: `print<find-key-pts>`
+* 2: `print<find-io-val>`
+* 3: `print<seminal-input>`
+* 4: `graph<seminal-input>`(prints all functions together, need to separate or remove them)
+
+
+#### With `opt`
+
+The passes will be built as shared libraries to be loaded with `opt` e.g.
+
+```sh
+opt \
+    -load-pass-plugin=$PLUGIN_PATH \
+    -passes=$PASSES \
+    -disable-output \
+    ir-file.ll
 ```
+
+The plugins and the corresponding passes are:
+
+* `build/lib/libFindIOVals.so`: ` print<find-io-val>`
+* `build/lib/libFindIOVals.so`: `print<find-key-pts>`
+* `build/lib/libFindIOVals.so`: `print<seminal-input>, graph<seminal-input>`

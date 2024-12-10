@@ -2,13 +2,23 @@
 # Given a C file, this script will compile it to LLVM IR with debug information, inline it, and run print<input-vals> on it.
 # Usage: ./inline_run.sh <c-file>
 
+if [ $# -lt 1 ]; then
+    echo "Usage: ./inline_run.sh <c-file> <mode>"
+    exit 1
+fi
 
 # ------------------------------------------
 # Configuration
 # ------------------------------------------
 
-# Modes: 0-3 (0: print<input-vals>, 1: print<find-key-pts>, 2: print<find-io-val>, 3: print<seminal-input>, 4: graph<seminal-input>)
-MODE=$2
+# Modes: 0-4 (0: print<input-vals>, 1: print<find-key-pts>, 2: print<find-io-val>, 3: print<seminal-input>, 4: graph<seminal-input>)
+
+# Set mode 3 as default
+if [ $# -lt 2 ]; then
+    MODE=3
+else
+    MODE=$2
+fi
 
 BEFORE_PASS='function(mem2reg)'
 # BEFORE_PASS='function(reg2mem)'

@@ -1,16 +1,15 @@
-#ifndef __412PROJ_FIND_IO_VALS_H
-#define __412PROJ_FIND_IO_VALS_H
-
-#include "utils.h"
-
-#include "llvm/IR/Function.h"
-#include "llvm/IR/Instruction.h"
-#include "llvm/IR/PassManager.h"
-#include "llvm/Pass.h"
-#include "llvm/Support/FormatVariadic.h"
+#ifndef FIND_IO_VALS_H
+#define FIND_IO_VALS_H
 
 #include <set>
 #include <vector>
+#include "llvm/IR/Function.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/Passes/PassPlugin.h"
+#include "llvm/Support/raw_ostream.h"
+#include "utils.h"
+#include "llvm/IR/Instruction.h"
+#include "llvm/Support/FormatVariadic.h"
 
 // Forward declarations
 namespace llvm {
@@ -84,13 +83,17 @@ _pretty_print_meta(const std::vector<IOValMetadata> &ioValsMetadata) {
 //------------------------------------------------------------------------------
 // New PM interface
 //------------------------------------------------------------------------------
+/**
+ * @brief Analysis pass to find IO-dependent values in a function.
+ */
 class FindIOVals : public llvm::AnalysisInfoMixin<FindIOVals> {
 public:
+
   struct IOValsInfo {
   public:
     std::set<llvm::Value *> ioVals;
-
     std::vector<IOValMetadata> ioValsMetadata;
+
 
     bool invalidate(llvm::Function &F,
                     const llvm::PreservedAnalyses &PA,
@@ -100,13 +103,9 @@ public:
   };
 
   using Result = IOValsInfo;
-  // This is one of the standard run() member functions expected by
-  // PassInfoMixin. When the pass is executed by the new PM, this is the
-  // function that will be called.
+
   Result run(llvm::Function &Func, llvm::FunctionAnalysisManager &FAM);
-  // This is a helper run() member function overload which can be called by the
-  // legacy pass (or any other code) without having to supply a
-  // FunctionAnalysisManager argument.
+
   Result run(llvm::Function &Func);
 
 private:
@@ -115,23 +114,11 @@ private:
 };
 
 struct FuncReturnIO : public llvm::AnalysisInfoMixin<FuncReturnIO> {
-  /**
-   * @brief Functions with retvals dependent on input
-   */
+
   class Result {
   public:
     bool returnIsIO;
-
-    // bool invalidate(llvm::Function &F, const llvm::PreservedAnalyses &PA,
-    //               llvm::FunctionAnalysisManager::Invalidator &Inv);
   };
-  Result run(llvm::Function &, llvm::FunctionAnalysisManager &);
-
-private:
-  // A special type used by analysis passes to provide an address that
-  // identifies that particular analysis pass type.
-  static llvm::AnalysisKey Key;
-  friend struct llvm::AnalysisInfoMixin<FuncReturnIO>;
 };
 
 //------------------------------------------------------------------------------
@@ -148,4 +135,4 @@ private:
   llvm::raw_ostream &OS;
 };
 
-#endif // __412PROJ_FIND_IO_VALS_H
+#endif // FIND_IO_VALS_H
