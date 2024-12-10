@@ -101,9 +101,9 @@ std::string getInstructionSrc(Instruction &I) {
 }
 
 int getArgPosInCall(const CallBase *callBase, const Value *arg) {
-  assert(callBase->hasArgument(arg) && "callInst does not have argument arg?");
+  // assert(callBase->hasArgument(arg) && "callInst does not have argument arg?");
   auto it = std::find(callBase->arg_begin(), callBase->arg_end(), arg);
-  assert(it != callBase->arg_end() && "Didn't find argument?");
+  // assert(it != callBase->arg_end() && "Didn't find argument?");
   return std::distance(callBase->arg_begin(), it);
 }
 

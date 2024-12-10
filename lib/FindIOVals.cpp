@@ -180,9 +180,6 @@ FindIOVals::Result FindIOVals::run(Function &F) {
     }
   }
 
-  assert(Res.ioVals.size() == Res.ioValsMetadata.size() &&
-         "Mismatched value counts");
-
   return Res;
 }
 

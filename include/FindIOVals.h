@@ -1,15 +1,16 @@
-#ifndef FIND_IO_VALS_H
-#define FIND_IO_VALS_H
+#ifndef __412PROJ_FIND_IO_VALS_H
+#define __412PROJ_FIND_IO_VALS_H
+
+#include "utils.h"
+
+#include "llvm/IR/Function.h"
+#include "llvm/IR/Instruction.h"
+#include "llvm/IR/PassManager.h"
+#include "llvm/Pass.h"
+#include "llvm/Support/FormatVariadic.h"
 
 #include <set>
 #include <vector>
-#include "llvm/IR/Function.h"
-#include "llvm/IR/PassManager.h"
-#include "llvm/Passes/PassPlugin.h"
-#include "llvm/Support/raw_ostream.h"
-#include "utils.h"
-#include "llvm/IR/Instruction.h"
-#include "llvm/Support/FormatVariadic.h"
 
 // Forward declarations
 namespace llvm {

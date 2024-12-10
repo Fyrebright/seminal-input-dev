@@ -42,6 +42,8 @@ cmake --build build/
 
 ### Running Passes
 
+Examples are included in `examples/`
+
 #### The easy way
 
 I have a script ready that will build and run the passes on a specified C source file.
