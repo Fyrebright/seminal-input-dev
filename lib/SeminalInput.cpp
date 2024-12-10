@@ -49,8 +49,6 @@ bool defUseRecurse(Value &V,
   bool res = false;
 
   for(auto U: V.users()) {
-    //   for(auto &use: V.uses()) {
-    //     auto U = use.get();
 
     // Check if user is a key point
     auto findRes =
@@ -59,26 +57,6 @@ bool defUseRecurse(Value &V,
       res = true;
     }
 
-    // if(auto I = dyn_cast<Instruction>(U)) {
-    //   errs() << I->getOpcodeName() << "\n";
-    // }
-
-    // if(auto I = dyn_cast<CallBase>(U)) {
-    //   if(isa<Function>(U) && U == I->getCalledFunction()) {
-    //     // continue;
-    //     errs() << "I AM FUNCTION\n";
-    //   }
-    //   // skip indirect call
-    //   // e.g., %0 = ... -> call %0(...)
-    //   else if(!I->hasArgument(U)) {
-    //     // continue;
-    //     errs() << "I AM INDIRECT CALL\n";
-    //     errs() << utils::getInstructionSrc(*I) << "\n";
-    //   } else if(Function *calleeFunc = I->getCalledFunction()) {
-    //     int pos = utils::getArgPosInCall(I, U);
-    //     errs() << "I AM ARGUMENT " << pos << "\n";
-    //   }
-    // }
 
     if(auto V_prime = dyn_cast<Value>(U)) {
       if(visited.find(V_prime) != visited.cend()) {
@@ -100,21 +78,13 @@ SeminalInput::Result searchFromInput(Function &F,
   std::vector<IOValMetadata> semVals{};
   std::set<Value *> visited{};
 
-  // I do not understand why, but it doesnt work unless I do this twice...
-  // I guess something is not getting initialized properly
+  // Recurse over def-use chain of each input value
   for(auto &ioValEntry: IOVals.ioValsMetadata) {
     auto V = ioValEntry.val;
     if(defUseRecurse(*V, KeyPoints, visited)) {
       semVals.push_back(ioValEntry);
     }
   }
-
-  //   for(auto &ioValEntry: IOVals.ioValsMetadata) {
-  //     auto V = ioValEntry.val;
-  //     if(defUseRecurse(*V, KeyPoints, visited)) {
-  //       semVals.push_back(ioValEntry);
-  //     }
-  //   }
 
   return SeminalInput::Result{semVals};
 }
@@ -125,52 +95,6 @@ SeminalInput::Result SeminalInput::run(Function &F,
   auto &IOVals = FAM.getResult<FindIOVals>(F);
   auto &IsRetIO = FAM.getResult<FuncReturnIO>(F);
   auto &KeyPoints = FAM.getResult<FindKeyPoints>(F);
-
-  DependenceInfo depInfo = FAM.getResult<DependenceAnalysis>(F);
-
-  //   for(auto &bb1: F) {
-  //     for(auto &i1: bb1) {
-  //       for(auto &bb2: F) {
-  //         for(auto &i2: bb2) {
-  //           if(std::find(KeyPoints.keyPoints.begin(),
-  //                        KeyPoints.keyPoints.end(),
-  //                        &i1) != KeyPoints.keyPoints.end()) {
-
-  //             errs() << "Key Point: " << i1 << "\n";
-  //             errs() << "\tInstruction: " << i2 << "\n";
-  //             if(depInfo.depends(&i1, &i2, false)) {
-  //               errs() << "Dependence: " << i1 << " -> " << i2 << "\n";
-  //             }
-  //           }
-  //         }
-  //       }
-  //       //   errs() << ".";
-  //     }
-  //     errs() << "\n";
-  //   }
-
-  //   for(auto keyPt: KeyPoints.keyPoints) {
-  //     for(auto &op : keyPt->operands()) {
-  //         if(auto cmp = dyn_cast<CmpInst>(op)) {
-  //             if(depInfo.depends(keyPt, cmp, false)) {
-  //                 errs() << "Dependence: " << keyPt->getName() << " -> " <<
-  //                 cmp->getName() << "\n";
-  //             }
-
-  //           errs() << "CMP: " << cmp->getName() << "\n";
-  //           for(auto &cmpOp : cmp->operands()) {
-  //             if(auto cmpOpInst = dyn_cast<Instruction>(cmpOp)) {
-  //                 if(depInfo.depends(keyPt, cmpOpInst, false)) {
-  //                 errs() << "Dependence: " << keyPt->getName() << " -> " <<
-  //                 cmpOpInst->getName() << "\n";
-  //             }
-  //               errs() << "CMP OP: " << utils::getInstructionSrc(*cmpOpInst)
-  //               << "\n";
-  //             }
-  //           }
-  //         }
-  //     }
-  //   }
 
   auto Res = searchFromInput(F, IOVals, IsRetIO, KeyPoints);
 
@@ -216,18 +140,6 @@ void recurseGraph(llvm::raw_ostream &OS,
                   int colorIdx,
                   std::set<Value *> &visited) {
   for(auto U: V.users()) {
-    //   for(auto &use: V.uses()) {
-    //     auto U = use.get();
-
-    // visited.insert(U);
-    // // For checking if user and instruction have the same name
-    // auto hasSameName = [&U](Instruction *I) {
-    //   return I == U;
-    // };
-
-    // auto findRes = std::find_if(
-    //     KeyPoints.keyPoints.cbegin(), KeyPoints.keyPoints.cend(),
-    //     hasSameName);
     auto findRes =
         std::find(KeyPoints.keyPoints.begin(), KeyPoints.keyPoints.end(), U);
     if(findRes != KeyPoints.keyPoints.cend()) {
@@ -281,9 +193,7 @@ PreservedAnalyses SeminalInputGraph::run(Function &F,
   auto &IsRetIO = FAM.getResult<FuncReturnIO>(F);
   auto &KeyPoints = FAM.getResult<FindKeyPoints>(F);
 
-  //   if(F.getName() == "main") {
   defUseDigraph(OS, F, IOVals, IsRetIO, KeyPoints);
-  //   }
   return PreservedAnalyses::all();
 }
 
@@ -294,7 +204,6 @@ PreservedAnalyses SeminalInputGraph::run(Function &F,
 static void printSemVals(raw_ostream &OS,
                          Function &Func,
                          const SeminalInput::Result &res) noexcept {
-  //   dbgs() << "======\n";
   // Print input value in format:
   //    Line <line num>: description including name of variable
   bool cmdArgs = false;
@@ -305,11 +214,11 @@ static void printSemVals(raw_ostream &OS,
                     semVal.funcName,
                     semVal.comment);
     } else if(semVal.inst == nullptr && semVal.funcName == "main") {
-        if(cmdArgs)
-            continue;
+      if(cmdArgs)
+        continue;
 
-        OS << "Command line arguments (argc/argv)\n";
-        cmdArgs = true;
+      OS << "Command line arguments (argc/argv)\n";
+      cmdArgs = true;
     } else {
       OS << formatv("Line {0}: in func \"{1}\", {2}\n",
                     semVal.lineNum,

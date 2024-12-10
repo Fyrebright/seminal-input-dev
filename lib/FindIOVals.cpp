@@ -47,7 +47,6 @@ FindIOVals::Result inputValues(CallInst &I, StringRef name) {
 
   // Get line number
   auto lineNum = utils::lineNum(I);
-  // dbgs() << "Line number: " << lineNum << "\n";
 
   if(name == "scanf") {
     // All after first argument
@@ -184,11 +183,8 @@ FindIOVals::Result FindIOVals::run(Function &F) {
     }
   }
 
-  // Check total number of values
-  // dbgs() << "Found " << Res.ioVals.size() << " values in func\"" <<
-  // F.getName() <<"\"\n";
-  // assert(Res.ioVals.size() == Res.ioValsMetadata.size() &&
-  //        "Mismatched value counts");
+  assert(Res.ioVals.size() == Res.ioValsMetadata.size() &&
+         "Mismatched value counts");
 
   return Res;
 }
@@ -206,35 +202,13 @@ bool usesInputVal(Instruction &I, std::set<Value *> &ioVals) {
     // Add to visited set
     visited.insert(&I);
 
-    // LLVM_DEBUG(
-    // dbgs() << "User " << U.get()->getName() << "\n";
-    // if(auto instU = dyn_cast<Instruction>(U)) {
-    // dbgs() << "\tLine num: " << utils::lineNum(*instU) << "\n";
-    // utils::printInstructionSrc(errs(), *instU);
-    // } else {
-    // dbgs() << "Not an instruction\n";
-    // }
-    // );
-
     if(auto V = dyn_cast<Value>(U)) {
       // Check if in input values
-
-      // // Want to see if this is the bottleneck
-      // dbgs() << "find...";
-      // Timer T("findtime", "findtime");
-      // T.startTimer();
-      // auto findres = ioVals.find(V);
-      // dbgs() << "done in " << T.getTotalTime().getWallTime() << "s\n";
-      // T.stopTimer();
 
       if(ioVals.find(V) != ioVals.cend()) {
         // LLVM_DEBUG(dbgs() << "FOUNDIT");
         return true;
       } else if(auto uI = dyn_cast<Instruction>(U)) {
-        // dbgs() << "done\n";
-        // LLVM_DEBUG(dbgs() << "sadge:");
-        // utils::printInstructionSrc(errs(), *uI);
-        // dbgs() << "Checking next...\n";
 
         // Check if visited
         if(visited.find(uI) != visited.cend()) {
@@ -302,10 +276,6 @@ static void printIOVals(raw_ostream &OS,
     OS << "** DOES NOT RETURN IO **\n";
   }
 
-  // Using a ModuleSlotTracker for printing makes it so full function analysis
-  // for slot numbering only occurs once instead of every time an instruction
-  // is printed.
-  ModuleSlotTracker Tracker(Func.getParent());
 
   // Print instruction for each value in res.ioValsMetadata
   for(const auto &IOVal: findIOValuesResult.ioValsMetadata) {
@@ -323,15 +293,6 @@ static void printIOVals(raw_ostream &OS,
     OS << "\n";
   }
 
-  // for(Value *V: res.ioVals) {
-  //   // V->print(OS, Tracker);
-  //   if (auto I = dyn_cast<Instruction>(V)) {
-  //     utils::printInstructionSrc(OS, *I);
-  //   } else {
-  //     OS << "Constant Value: ";
-  //     V->printAsOperand(OS, false, Func.getParent());
-  //   }
-  // }
 }
 
 PreservedAnalyses FindIOValsPrinter::run(Function &F,
