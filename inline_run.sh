@@ -7,11 +7,12 @@
 # Configuration
 # ------------------------------------------
 
-# Modes: 0-3 (0: print<input-vals>, 1: print<find-key-pts>, 2: print<find-io-val>, 3: print<seminal-input>)
-MODE=3
+# Modes: 0-3 (0: print<input-vals>, 1: print<find-key-pts>, 2: print<find-io-val>, 3: print<seminal-input>, 4: graph<seminal-input>)
+MODE=$2
 
 BEFORE_PASS='function(mem2reg)'
 # BEFORE_PASS='function(reg2mem)'
+# BEFORE_PASS='sink'
 
 USE_INLINE=0
 OPTLEVEL=0
@@ -23,7 +24,6 @@ DEBUG_PASS=0
 # ------------------------------------------
 # Process settings
 # ------------------------------------------
-# {}
 
 # Set the plugin path based on the mode
 case $MODE in
@@ -42,6 +42,10 @@ case $MODE in
 3)
     PLUGIN_PATH=build/lib/libSeminalInput.so
     PASSES='function(print<seminal-input>)'
+    ;;
+4)
+    PLUGIN_PATH=build/lib/libSeminalInput.so
+    PASSES='function(graph<seminal-input>)'
     ;;
 *)
     echo "Invalid mode: $MODE"
@@ -98,15 +102,21 @@ IR=$(clang -g -S -emit-llvm -O"$OPTLEVEL" -fno-discard-value-names -Xclang -disa
 # echo "$IR"
 
 # #################### TODO: not sure if this is preferable
-# # Run the before pass
+# Run the before pass
 # if [ -n "$BEFORE_PASS" ]; then
-#     IR=$(opt -S -passes="$BEFORE_PASS" <(echo "$IR"))
+#     IR2=$(opt -S -passes="$BEFORE_PASS" <(echo "$IR"))
+
+#     diff -s <(echo "$IR") <(echo "$IR2")
+#     IR="$IR2"
 # fi
 
 
 if [ $USE_INLINE -eq 0 ]; then
     # Write the IR to a file
     echo "$IR" >out/"$basename".ll
+
+    # echo command
+    # echo "opt -load-pass-plugin=$PLUGIN_PATH -passes=$PASSES $OPTS out/$basename.ll"
 
     opt \
         -load-pass-plugin=$PLUGIN_PATH \
@@ -123,7 +133,7 @@ else
     INLINE=$(opt -S -passes="inline" <(echo "$IR_sed"))
 
     # Write the inlined IR to a file
-    echo "$INLINE" >out/"$basename"-inlined.ll
+    # echo "$INLINE" >out/"$basename"-inlined.ll
 
     # echo command
     # echo "opt -load-pass-plugin=$PLUGIN_PATH -passes=$PASSES $OPTS out/$basename-inlined.ll"
