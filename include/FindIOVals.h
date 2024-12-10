@@ -114,11 +114,18 @@ private:
 };
 
 struct FuncReturnIO : public llvm::AnalysisInfoMixin<FuncReturnIO> {
-
   class Result {
   public:
     bool returnIsIO;
+
   };
+  Result run(llvm::Function &, llvm::FunctionAnalysisManager &);
+
+private:
+  // A special type used by analysis passes to provide an address that
+  // identifies that particular analysis pass type.
+  static llvm::AnalysisKey Key;
+  friend struct llvm::AnalysisInfoMixin<FuncReturnIO>;
 };
 
 //------------------------------------------------------------------------------

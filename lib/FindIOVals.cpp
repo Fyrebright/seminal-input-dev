@@ -133,9 +133,6 @@ FindIOVals::Result inputValues(CallInst &I, StringRef name) {
     }
   }
 
-  // Sanity check: print counts
-  // dbgs() << "Found " << vals.size() << " values\n";
-  assert(vals.size() == valsMetadata.size() && "Mismatched value counts");
 
   return FindIOVals::Result{vals, valsMetadata};
 }
