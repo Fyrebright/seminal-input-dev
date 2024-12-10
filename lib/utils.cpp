@@ -71,12 +71,12 @@ std::string _raw_instruction(Instruction &I) {
   return nullptr;
 }
 
-std::string getLhsName(Instruction &I){
+std::string getLhsName(Instruction &I) {
   // Get the name of the variable instruction is assigned to
   auto line = _raw_instruction(I);
 
   line = line.substr(0, line.find("="));
-  return line.substr(line.find_last_of("*")+1, line.size());
+  return line.substr(line.find_last_of("*") + 1, line.size());
 }
 
 /**

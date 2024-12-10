@@ -57,7 +57,6 @@ bool defUseRecurse(Value &V,
       res = true;
     }
 
-
     if(auto V_prime = dyn_cast<Value>(U)) {
       if(visited.find(V_prime) != visited.cend()) {
         continue;

@@ -51,10 +51,9 @@ const std::set<llvm::StringRef> FILE_DEP_FUNCTIONS{
     "fgets",
     "fread",
     "fscanf",
-    };
+};
 
-inline bool
-isInputFunc(llvm::Function &F, llvm::StringRef &name) {
+inline bool isInputFunc(llvm::Function &F, llvm::StringRef &name) {
   name = F.getName();
 
   // Remove prefix if present

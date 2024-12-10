@@ -1,8 +1,8 @@
 #ifndef __412PROJ_UTILS_H
 #define __412PROJ_UTILS_H
 
-#include "llvm/IR/Instruction.h"
 #include "llvm/IR/InstrTypes.h"
+#include "llvm/IR/Instruction.h"
 #include "llvm/Pass.h"
 
 // #ifndef DEBUG_TYPE

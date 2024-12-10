@@ -80,13 +80,13 @@ struct KeyPointVisitor : public InstVisitor<KeyPointVisitor> {
   }
   void visitICmpInst(ICmpInst &I) {
     // LLVM_DEBUG(dbgs() << "ICmpInst(" << utils::lineNum(I) << ")\n";);
-     if (usedByBranch(I)) {
+    if(usedByBranch(I)) {
       res.keyPoints.insert(&I);
     }
   }
   void visitFCmpInst(FCmpInst &I) {
     // LLVM_DEBUG(dbgs() << "FCmpInst(" << utils::lineNum(I) << ")\n";);
-     if (usedByBranch(I)) {
+    if(usedByBranch(I)) {
       res.keyPoints.insert(&I);
     }
   }

@@ -276,7 +276,6 @@ static void printIOVals(raw_ostream &OS,
     OS << "** DOES NOT RETURN IO **\n";
   }
 
-
   // Print instruction for each value in res.ioValsMetadata
   for(const auto &IOVal: findIOValuesResult.ioValsMetadata) {
     OS << "\tValue \"" << IOVal.val->getName() << "\"";
@@ -292,7 +291,6 @@ static void printIOVals(raw_ostream &OS,
 
     OS << "\n";
   }
-
 }
 
 PreservedAnalyses FindIOValsPrinter::run(Function &F,
