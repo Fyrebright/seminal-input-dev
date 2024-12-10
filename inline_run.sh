@@ -2,22 +2,57 @@
 # Given a C file, this script will compile it to LLVM IR with debug information, inline it, and run print<input-vals> on it.
 # Usage: ./inline_run.sh <c-file>
 
-# Path to the plugin
-PLUGIN_PATH=build/lib/libFindKeyPoints.so
-# PLUGIN_PATH=build/lib/libFindIOVals.so
-# PLUGIN_PATH=build/lib/libFindInputValues.so
+
+# ------------------------------------------
+# Configuration
+# ------------------------------------------
+
+# Modes: 0-3 (0: print<input-vals>, 1: print<find-key-pts>, 2: print<find-io-val>, 3: print<seminal-input>)
+MODE=3
+
+BEFORE_PASS='function(mem2reg)'
+# BEFORE_PASS='function(reg2mem)'
 
 USE_INLINE=0
 OPTLEVEL=0
 
-PASSES='function(mem2reg),function(print<find-key-pts>)'
-# PASSES='function(mem2reg),function(print<find-io-val>)'
-# PASSES='function(print<find-io-val>)'
-# PASSES='function(mem2reg),print<input-vals>'
-
 OPTS='-disable-output'
 DEBUG_PM=0
 DEBUG_PASS=0
+
+# ------------------------------------------
+# Process settings
+# ------------------------------------------
+# {}
+
+# Set the plugin path based on the mode
+case $MODE in
+0)
+    PLUGIN_PATH=build/lib/libFindInputValues.so
+    PASSES='function(print<input-vals>)'
+    ;;
+1)
+    PLUGIN_PATH=build/lib/libFindKeyPoints.so
+    PASSES='function(print<find-key-pts>)'
+    ;;
+2)
+    PLUGIN_PATH=build/lib/libFindIOVals.so
+    PASSES='function(print<find-io-val>)'
+    ;;
+3)
+    PLUGIN_PATH=build/lib/libSeminalInput.so
+    PASSES='function(print<seminal-input>)'
+    ;;
+*)
+    echo "Invalid mode: $MODE"
+    exit 1
+    ;;
+esac
+
+# Add the before pass to the passes
+if [ -n "$BEFORE_PASS" ]; then
+    PASSES="$BEFORE_PASS,$PASSES"
+fi
 
 # Get file path from input
 file=$1
@@ -54,9 +89,20 @@ if [ $DEBUG_PASS -eq 1 ]; then
     OPTS="$OPTS -debug"
 fi
 
+# ------------------------------------------
+# Main script
+# ------------------------------------------
+
 # Compile the C file to LLVM IR with debug information and assign it to a variable
 IR=$(clang -g -S -emit-llvm -O"$OPTLEVEL" -fno-discard-value-names -Xclang -disable-O0-optnone -o - "$file")
 # echo "$IR"
+
+# #################### TODO: not sure if this is preferable
+# # Run the before pass
+# if [ -n "$BEFORE_PASS" ]; then
+#     IR=$(opt -S -passes="$BEFORE_PASS" <(echo "$IR"))
+# fi
+
 
 if [ $USE_INLINE -eq 0 ]; then
     # Write the IR to a file
@@ -80,7 +126,7 @@ else
     echo "$INLINE" >out/"$basename"-inlined.ll
 
     # echo command
-    echo "opt -load-pass-plugin=$PLUGIN_PATH -passes=$PASSES $OPTS out/$basename-inlined.ll"
+    # echo "opt -load-pass-plugin=$PLUGIN_PATH -passes=$PASSES $OPTS out/$basename-inlined.ll"
 
     # Run print<input-vals> on the inlined IR
     opt \

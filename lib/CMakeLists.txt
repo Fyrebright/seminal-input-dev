@@ -5,6 +5,7 @@ set(PLUGINS
     # RIV
     FindIOVals
     FindKeyPoints
+    SeminalInput
     )
 
 set(FindInputValues_SOURCES
@@ -13,6 +14,8 @@ set(FindIOVals_SOURCES
 FindIOVals.cpp)
 set(FindKeyPoints_SOURCES
 FindKeyPoints.cpp)
+set(SeminalInput_SOURCES
+SeminalInput.cpp FindIOVals.cpp FindKeyPoints.cpp)
 
 # Add shared source files
 set(SHARED_SOURCES

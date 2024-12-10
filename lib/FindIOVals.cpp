@@ -19,6 +19,7 @@
 #include "llvm/Support/Timer.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include <cassert>
 #include <string>
 
 #ifndef DEBUG_TYPE
@@ -41,47 +42,80 @@ FindIOVals::Result inputValues(CallInst &I, StringRef name) {
   std::set<Value *> vals{};
   std::vector<IOValMetadata> valsMetadata{};
 
+  // Get line number
+  auto lineNum = utils::lineNum(I);
+  // dbgs() << "Line number: " << lineNum << "\n";
+
   if(name == "scanf") {
     // All after first argument
     for(auto arg = I.arg_begin() + 1; arg != I.arg_end(); ++arg) {
       vals.insert(arg->get());
-      valsMetadata.push_back({arg->get(), &I, name.str()});
+      valsMetadata.push_back(IOValMetadata{.val = arg->get(),
+                                           .inst = &I,
+                                           .funcName = name.str(),
+                                           .lineNum = lineNum});
     }
   } else if(name == "fscanf" || name == "sscanf") {
     // All after second argument
     for(auto arg = I.arg_begin() + 2; arg != I.arg_end(); ++arg) {
       vals.insert(arg->get());
-      valsMetadata.push_back({arg->get(), &I, name.str()});
+
+      valsMetadata.push_back(IOValMetadata{.val = arg->get(),
+                                           .inst = &I,
+                                           .funcName = name.str(),
+                                           .lineNum = lineNum});
     }
   } else if(name == "gets" || name == "fgets" || name == "fread") {
     // first argument
     vals.insert(I.getArgOperand(0));
-    valsMetadata.push_back({I.getArgOperand(0), &I, name.str()});
+    valsMetadata.push_back(IOValMetadata{.val = I.getArgOperand(0),
+                                         .inst = &I,
+                                         .funcName = name.str(),
+                                         .lineNum = lineNum});
   } else if(name == "getopt") {
     // third argument
     vals.insert(I.getArgOperand(2));
-    valsMetadata.push_back({I.getArgOperand(2), &I, name.str()});
+    valsMetadata.push_back(IOValMetadata{.val = I.getArgOperand(2),
+                                         .inst = &I,
+                                         .funcName = name.str(),
+                                         .lineNum = lineNum});
   } else if(name == "fdopen" || name == "freopen" || name == "popen") {
     // Retvals, and mark as file descriptors
     auto retval = dyn_cast_if_present<Value>(&I);
     vals.insert(retval);
-    valsMetadata.push_back({retval, &I, name.str(), true, "File descriptor"});
+    valsMetadata.push_back(IOValMetadata{
+        .val = retval,
+        .inst = &I,
+        .funcName = name.str(),
+        .isFile = true,
+        .comment = "File descriptor",
+        .lineNum = lineNum,
+    });
   } else if(name == "fgetc" || name == "getc" || name == "getc_unlocked" ||
             name == "getchar" || name == "getchar_unlocked" || name == "getw" ||
             name == "getenv") {
     // Retvals, not file descriptors
     auto retval = dyn_cast_if_present<Value>(&I);
     vals.insert(retval);
-    valsMetadata.push_back({retval, &I, name.str()});
+    valsMetadata.push_back(IOValMetadata{
+        .val = retval, .inst = &I, .funcName = name.str(), .lineNum = lineNum});
   }
 
   // Add store instructions that use the return value
   for(auto U: I.users()) {
     if(auto SI = dyn_cast<StoreInst>(U)) {
       vals.insert(SI->getOperand(1));
-      valsMetadata.push_back({SI->getOperand(1), SI, name.str()});
+      valsMetadata.push_back(IOValMetadata{.val = SI->getOperand(1),
+                                           .inst = SI,
+                                           .funcName = name.str(),
+                                           .lineNum = lineNum});
     }
   }
+
+  // Sanity check: print counts
+  // dbgs() << "Found " << vals.size() << " values\n";
+  assert(vals.size() == valsMetadata.size() && "Mismatched value counts");
+
   return FindIOVals::Result{vals, valsMetadata};
 }
 
@@ -92,7 +126,15 @@ struct InputCallVisitor : public InstVisitor<InputCallVisitor> {
     if(auto *F = CI.getCalledFunction()) {
       StringRef name;
       if(isInputFunc(*F, name)) {
-        res = inputValues(CI, name);
+        // Append result
+        auto newVals = inputValues(CI, name);
+        res.ioVals.insert(newVals.ioVals.cbegin(), newVals.ioVals.cend());
+        res.ioValsMetadata.insert(res.ioValsMetadata.end(),
+                                  newVals.ioValsMetadata.cbegin(),
+                                  newVals.ioValsMetadata.cend());
+
+        // // Pretty-print metadata structs for debugging
+        // _pretty_print_meta(res.ioValsMetadata);
       }
     }
   }
@@ -109,6 +151,9 @@ FindIOVals::Result FindIOVals::run(Function &F) {
   ICV.visit(&F);
   Res = ICV.res;
 
+  // // Pretty-print metadata structs for debugging
+  // _pretty_print_meta(Res.ioValsMetadata);
+
   // Add argument values to result
   if(F.getName() == "main") {
     for(auto &arg: F.args()) {
@@ -116,6 +161,12 @@ FindIOVals::Result FindIOVals::run(Function &F) {
       Res.ioValsMetadata.push_back({&arg, nullptr, "main"});
     }
   }
+
+  // Check total number of values
+  // dbgs() << "Found " << Res.ioVals.size() << " values in func\"" <<
+  // F.getName() <<"\"\n";
+  // assert(Res.ioVals.size() == Res.ioValsMetadata.size() &&
+  //        "Mismatched value counts");
 
   return Res;
 }
@@ -134,13 +185,13 @@ bool usesInputVal(Instruction &I, std::set<Value *> &ioVals) {
     visited.insert(&I);
 
     // LLVM_DEBUG(
-    dbgs() << "User " << U.get()->getName() << "\n";
-    if(auto instU = dyn_cast<Instruction>(U)) {
-      dbgs() << "\tLine num: " << utils::lineNum(*instU) << "\n";
-      // utils::printInstructionSrc(errs(), *instU);
-    } else {
-      dbgs() << "Not an instruction\n";
-    }
+    // dbgs() << "User " << U.get()->getName() << "\n";
+    // if(auto instU = dyn_cast<Instruction>(U)) {
+    // dbgs() << "\tLine num: " << utils::lineNum(*instU) << "\n";
+    // utils::printInstructionSrc(errs(), *instU);
+    // } else {
+    // dbgs() << "Not an instruction\n";
+    // }
     // );
 
     if(auto V = dyn_cast<Value>(U)) {
@@ -158,10 +209,10 @@ bool usesInputVal(Instruction &I, std::set<Value *> &ioVals) {
         // LLVM_DEBUG(dbgs() << "FOUNDIT");
         return true;
       } else if(auto uI = dyn_cast<Instruction>(U)) {
-        dbgs() << "done\n";
+        // dbgs() << "done\n";
         // LLVM_DEBUG(dbgs() << "sadge:");
         // utils::printInstructionSrc(errs(), *uI);
-        dbgs() << "Checking next...\n";
+        // dbgs() << "Checking next...\n";
 
         // Check if visited
         if(visited.find(uI) != visited.cend()) {
@@ -194,7 +245,7 @@ struct ReturnVisitor : public InstVisitor<ReturnVisitor> {
 FuncReturnIO::Result FuncReturnIO::run(Function &F,
                                        FunctionAnalysisManager &FAM) {
   if(F.getName() == "main") {
-    errs() << "Skipping main function...\n";
+    // errs() << "Skipping main function...\n";
     return FuncReturnIO::Result{false};
   }
 
@@ -236,7 +287,7 @@ static void printIOVals(raw_ostream &OS,
 
   // Print instruction for each value in res.ioValsMetadata
   for(const auto &IOVal: findIOValuesResult.ioValsMetadata) {
-    OS << "Value " << IOVal.val->getName();
+    OS << "\tValue \"" << IOVal.val->getName() << "\"";
 
     // Check if inst is null (like arg to main) before trying to print
     if(IOVal.inst) {

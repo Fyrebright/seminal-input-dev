@@ -7,6 +7,7 @@
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/PassManager.h"
 #include "llvm/Pass.h"
+#include "llvm/Support/FormatVariadic.h"
 
 #include <set>
 #include <vector>
@@ -59,7 +60,16 @@ struct IOValMetadata {
   std::string funcName;
   bool isFile = false;
   std::string comment = "";
+  int lineNum = -1;
 };
+
+inline void
+_pretty_print_meta(const std::vector<IOValMetadata> &ioValsMetadata) {
+  for(const auto &IOVal: ioValsMetadata) {
+    llvm::dbgs() << formatv(
+        "[{0},{1},{2}]\n", IOVal.val->getName(), IOVal.funcName, IOVal.lineNum);
+  }
+}
 
 //------------------------------------------------------------------------------
 // New PM interface

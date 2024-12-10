@@ -37,7 +37,7 @@ int lineNum(Instruction &I) {
   if(DILocation *Loc = I.getDebugLoc())
     return Loc->getLine();
   else
-    return -1;
+    return -2;
 }
 
 /**
