@@ -48,7 +48,7 @@ int lineNum(Instruction &I) {
  * @return std::string with line number, source code line, and instruction type.
  */
 std::string getInstructionSrc(Instruction &I) {
-  if(const DILocation *Loc = I.getDebugLoc()) {
+  if(const DILocation *Loc = I.getStableDebugLoc()) {
     unsigned lineNumber = Loc->getLine();
     StringRef File = Loc->getFilename();
     StringRef Dir = Loc->getDirectory();
@@ -79,6 +79,14 @@ std::string getInstructionSrc(Instruction &I) {
   }
   return formatv(
       "{0} : {1} ({2})", "No debug info", I.getName(), I.getOpcodeName());
+}
+
+int getArgPosInCall(const CallBase *callBase, const Value *arg)
+{
+    assert(callBase->hasArgument(arg) && "callInst does not have argument arg?");
+    auto it = std::find(callBase->arg_begin(), callBase->arg_end(), arg);
+    assert(it != callBase->arg_end() && "Didn't find argument?");
+    return std::distance(callBase->arg_begin(), it);
 }
 
 // sed -E 's/(\w+Inst)/void visit$1($1 &I) {errs() << "$1(" << utils::lineNum(I)

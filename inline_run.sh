@@ -133,7 +133,7 @@ else
     INLINE=$(opt -S -passes="inline" <(echo "$IR_sed"))
 
     # Write the inlined IR to a file
-    # echo "$INLINE" >out/"$basename"-inlined.ll
+    echo "$INLINE" >out/"$basename"-inlined.ll
 
     # echo command
     # echo "opt -load-pass-plugin=$PLUGIN_PATH -passes=$PASSES $OPTS out/$basename-inlined.ll"

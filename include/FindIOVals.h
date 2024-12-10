@@ -22,28 +22,39 @@ class raw_ostream;
 
 } // namespace llvm
 
-const std::set<llvm::StringRef> INPUT_FUNCTIONS{// "fdopen",
-                                                "fgetc",
-                                                // "fgetpos",
-                                                "fgets",
-                                                "fopen",
-                                                "fread",
-                                                // "freopen",
-                                                "fscanf",
-                                                "getc",
-                                                "getc_unlocked",
-                                                "getchar",
-                                                "getchar_unlocked",
-                                                "getopt",
-                                                "gets",
-                                                "getw",
-                                                // "popen",
-                                                "scanf",
-                                                "sscanf",
-                                                "ungetc",
-                                                "getenv"};
+const std::set<llvm::StringRef> INPUT_FUNCTIONS{
+    "fdopen",
+    "fgetc",
+    "fgetpos",
+    "fgets",
+    "fopen",
+    "fread",
+    "freopen",
+    "fscanf",
+    "getc_unlocked",
+    "getc",
+    "getchar_unlocked",
+    "getchar",
+    "getenv",
+    "getopt",
+    "gets",
+    "getw",
+    "popen",
+    "scanf",
+    "sscanf",
+    "ungetc",
+};
 
-inline bool isInputFunc(llvm::Function &F, llvm::StringRef &name) {
+const std::set<llvm::StringRef> FILE_DEP_FUNCTIONS{
+    "fgetc",
+    "fgetpos",
+    "fgets",
+    "fread",
+    "fscanf",
+    };
+
+inline bool
+isInputFunc(llvm::Function &F, llvm::StringRef &name) {
   name = F.getName();
 
   // Remove prefix if present

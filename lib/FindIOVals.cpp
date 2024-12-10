@@ -5,6 +5,7 @@
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Analysis/CGSCCPassManager.h"
+#include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/IR/Function.h"
 #include "llvm/IR/InstVisitor.h"
 #include "llvm/IR/Instruction.h"
@@ -41,6 +42,7 @@ static constexpr char PluginName[] = "FindIOVals";
 FindIOVals::Result inputValues(CallInst &I, StringRef name) {
   std::set<Value *> vals{};
   std::vector<IOValMetadata> valsMetadata{};
+  bool isFile = false;
 
   // Get line number
   auto lineNum = utils::lineNum(I);
@@ -79,8 +81,10 @@ FindIOVals::Result inputValues(CallInst &I, StringRef name) {
                                          .inst = &I,
                                          .funcName = name.str(),
                                          .lineNum = lineNum});
-  } else if(name == "fdopen" || name == "freopen" || name == "popen") {
+  } else if(name == "fopen" || name == "fdopen" || name == "freopen" ||
+            name == "popen") {
     // Retvals, and mark as file descriptors
+    isFile = true;
     auto retval = dyn_cast_if_present<Value>(&I);
     vals.insert(retval);
     valsMetadata.push_back(IOValMetadata{
@@ -91,6 +95,7 @@ FindIOVals::Result inputValues(CallInst &I, StringRef name) {
         .comment = "File descriptor",
         .lineNum = lineNum,
     });
+
   } else if(name == "fgetc" || name == "getc" || name == "getc_unlocked" ||
             name == "getchar" || name == "getchar_unlocked" || name == "getw" ||
             name == "getenv") {
@@ -108,7 +113,9 @@ FindIOVals::Result inputValues(CallInst &I, StringRef name) {
       valsMetadata.push_back(IOValMetadata{.val = SI->getOperand(1),
                                            .inst = SI,
                                            .funcName = name.str(),
-                                           .lineNum = lineNum});
+                                           .isFile = isFile,
+                                           .lineNum = lineNum,
+                                           });
     }
   }
 
@@ -292,6 +299,10 @@ static void printIOVals(raw_ostream &OS,
     // Check if inst is null (like arg to main) before trying to print
     if(IOVal.inst) {
       OS << " defined at: " << utils::getInstructionSrc(*IOVal.inst);
+    }
+
+    if(IOVal.isFile) {
+      OS << " (File descriptor)";
     }
 
     OS << "\n";

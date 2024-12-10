@@ -6,19 +6,21 @@
 
 #include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Function.h"
-#include "llvm/IR/InstIterator.h"
 #include "llvm/IR/InstVisitor.h"
 #include "llvm/IR/Instruction.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/ModuleSlotTracker.h"
+#include "llvm/IR/Value.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/FormatVariadic.h"
+#include "llvm/Support/GraphWriter.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include <algorithm>
@@ -49,79 +51,69 @@ bool defUseRecurse(Value &V,
   }
   static std::set<Value *> visited{};
 
-  for(User *U: V.users()) {
-    // if(U->getName() == "") {
-    //   dbgs() << " not a var??\n";
-    //   // continue;
-    // } else {
-    //   dbgs() << U->getName();
-    // }
-    // Find member of key points that has the same name
-    // dbgs() << "(--";
-    // U->getType()->print(dbgs());
-    // U->print(dbgs());
-    // dbgs() << "--),";
+  for(auto U: V.users()) {
+    //   for(auto &use: V.uses()) {
+    //     auto U = use.get();
 
-    auto hasSameName = [&U](Instruction *I) {
-      //   if(I->getName() != "" && I->getName() == U->getName()) {
-      //   }
-      //   return I->getName() != "" && I->getName() == U->getName();
-      return I == U;
-    };
-
-    auto findRes = std::find_if(
-        KeyPoints.keyPoints.cbegin(), KeyPoints.keyPoints.cend(), hasSameName);
+    // Check if user is a key point
+    auto findRes =
+        std::find(KeyPoints.keyPoints.cbegin(), KeyPoints.keyPoints.cend(), U);
     if(findRes != KeyPoints.keyPoints.cend()) {
-
-      dbgs() << "FOUND A SPOT WOW-------\n";
-      //   print found key point
-      auto I = (*findRes);
-
-      //   dbgs() << "Found a key point: ";
-      utils::printInstructionSrc(dbgs(), *I);
-
       return true;
     }
+
+    // if(auto I = dyn_cast<Instruction>(U)) {
+    //   errs() << I->getOpcodeName() << "\n";
+    // }
+
+    // if(auto I = dyn_cast<CallInst>(U)) {
+    //   if(isa<Function>(U) && U == I->getCalledFunction()) {
+    //     // continue;
+    //     errs() << "I AM FUNCTION\n";
+    //   }
+    //   // skip indirect call
+    //   // e.g., %0 = ... -> call %0(...)
+    //   else if(!I->hasArgument(U)) {
+    //     // continue;
+    //     errs() << "I AM INDIRECT CALL\n";
+    //     errs() << utils::getInstructionSrc(*I) << "\n";
+    //   } else if(Function *calleeFunc = I->getCalledFunction()) {
+    //     int pos = utils::getArgPosInCall(I, U);
+    //     errs() << "I AM ARGUMENT " << pos << "\n";
+    //   }
+    // }
 
     if(auto V_prime = dyn_cast<Value>(U)) {
       if(visited.find(V_prime) != visited.cend()) {
         continue;
       }
+
+      // Add to visited set
       visited.insert(V_prime);
       return defUseRecurse(*V_prime, KeyPoints);
     }
   }
-  //   dbgs() << "\n";
   return false;
 }
-
-// void searchfromInput2(Function &F,
-//                       const FindIOVals::Result &IOVals,
-//                       const FuncReturnIO::Result &IsRetIO,
-//                       const FindKeyPoints::Result &KeyPoints) {
-
-//   for(auto &V: IOVals.ioVals) {
-//     if(defUseRecurse(*V, KeyPoints)) {
-//       dbgs() << "FOUND A SEMINAL INPUT2\n";
-//     } else {
-//       dbgs() << "NOT FOUND A SEMINAL INPUT2\n";
-//     }
-//   }
-// }
 
 SeminalInput::Result searchFromInput(Function &F,
                                      const FindIOVals::Result &IOVals,
                                      const FuncReturnIO::Result &IsRetIO,
                                      const FindKeyPoints::Result &KeyPoints) {
-  // // Graphing
-
-  //   return SeminalInput::Result{};
   std::vector<IOValMetadata> semVals{};
+
+  // I do not understand why, but it doesnt work unless I do this twice...
+  // I guess something is not getting initialized properly
+  for(auto &ioValEntry: IOVals.ioValsMetadata) {
+    auto V = ioValEntry.val;
+    if(defUseRecurse(*V, KeyPoints, true)) {
+      semVals.push_back(ioValEntry);
+    }
+  }
 
   for(auto &ioValEntry: IOVals.ioValsMetadata) {
     auto V = ioValEntry.val;
     if(defUseRecurse(*V, KeyPoints, true)) {
-      dbgs() << "FOUND A SEMINAL INPUT1\n";
       semVals.push_back(ioValEntry);
     }
   }
@@ -147,36 +139,67 @@ SeminalInput::Result SeminalInput::run(Function &F,
 
 std::string colors[] = {"red", "blue", "yellow", "purple", "orange"};
 
+inline std::string _getValName(Value &V) {
+  // Create stringref from ostream
+  auto sep = '~';
+  std::string str;
+  raw_string_ostream rso(str);
+  V.print(rso, false);
+  rso.flush();
+  StringRef valStr = str;
+  std::string ret;
+  if(!valStr.contains(sep)) {
+    return DOT::EscapeString(valStr.trim().str());
+  }
+
+  return DOT::EscapeString(valStr.split(sep).first.trim().str());
+}
+
+void _makeEdge(Value &from, Value &to, raw_ostream &OS, int idx) {
+  std::string fromName = _getValName(from);
+  std::string toName = _getValName(to);
+
+  OS << formatv("\"{0}{1}\" -> \"{0}{2}\";\n", idx, fromName, toName);
+}
+void _makeNode(Value &label, StringRef style, raw_ostream &OS, int idx) {
+  std::string labelName = _getValName(label);
+  OS << formatv("\"{0}{1}\" [{2} label=\"{1}\"];\n", idx, labelName, style);
+}
+
 void _recurse_case(llvm::raw_ostream &OS,
                    Value &V,
                    const FindKeyPoints::Result &KeyPoints,
                    int colorIdx) {
   static std::set<Value *> visited{};
+  // visited.insert(&V);
 
-  for(User *U: V.users()) {
+  for(auto U: V.users()) {
+    //   for(auto &use: V.uses()) {
+    //     auto U = use.get();
 
-    // For checking if user and instruction have the same name
-    auto hasSameName = [&U](Instruction *I) {
-      return I == U;
-    };
+    // visited.insert(U);
+    // // For checking if user and instruction have the same name
+    // auto hasSameName = [&U](Instruction *I) {
+    //   return I == U;
+    // };
 
-    auto findRes = std::find_if(
-        KeyPoints.keyPoints.cbegin(), KeyPoints.keyPoints.cend(), hasSameName);
+    // auto findRes = std::find_if(
+    //     KeyPoints.keyPoints.cbegin(), KeyPoints.keyPoints.cend(),
+    //     hasSameName);
+    auto findRes =
+        std::find(KeyPoints.keyPoints.begin(), KeyPoints.keyPoints.end(), U);
     if(findRes != KeyPoints.keyPoints.cend()) {
-
-      OS << "\"" << *dyn_cast<Instruction>(U) << "\"" << " -> " << "\"" << V
-         << "\"" << ";\n";
-      OS << "\"" << *dyn_cast<Instruction>(U) << "\""
-         << " [ color = green ]\n";
+      _makeEdge(*U, V, OS, colorIdx);
+      _makeNode(*U, "color = green,  style=filled", OS, colorIdx);
 
       return;
     }
 
     if(dyn_cast<Instruction>(U)) {
-      OS << "\"" << *dyn_cast<Instruction>(U) << "\"" << " -> " << "\"" << V
-         << "\"" << ";\n";
-      OS << "\"" << *dyn_cast<Instruction>(U) << "\""
-         << " [ color = " << colors[colorIdx % 5] << " ]\n";
+      _makeEdge(*U, V, OS, colorIdx);
+
+      _makeNode(
+          *U, Twine("color = ", colors[colorIdx % 5]).str(), OS, colorIdx);
     }
 
     if(auto V_prime = dyn_cast<Value>(U)) {
@@ -196,12 +219,13 @@ void defUseDigraph(llvm::raw_ostream &OS,
                    const FuncReturnIO::Result &IsRetIO,
                    const FindKeyPoints::Result &KeyPoints) {
 
-  OS << "digraph " + F.getName() + "{\n";
-  OS << "\n";
+  OS << "digraph " + F.getName() + "{\nnode[shape=box]\n";
   int colorIdx = 0;
   for(auto &V: IOVals.ioVals) {
-    OS << "\"" << *V << "\"" << " [ color = green ]\n";
+    OS << "subgraph cluster_" << colorIdx << " {\n";
+    _makeNode(*V, "color = green,  style=filled", OS, colorIdx);
     _recurse_case(OS, *V, KeyPoints, colorIdx++);
+    OS << "}\n";
   }
   OS << "\n}\n";
 }
@@ -213,7 +237,9 @@ PreservedAnalyses SeminalInputGraph::run(Function &F,
   auto &IsRetIO = FAM.getResult<FuncReturnIO>(F);
   auto &KeyPoints = FAM.getResult<FindKeyPoints>(F);
 
+  //   if(F.getName() == "main") {
   defUseDigraph(OS, F, IOVals, IsRetIO, KeyPoints);
+  //   }
   return PreservedAnalyses::all();
 }
 
@@ -258,6 +284,7 @@ PassPluginLibraryInfo getSeminalInputPluginInfo() {
                   FAM.registerPass([&] { return FindKeyPoints(); });
                   FAM.registerPass([&] { return SeminalInput(); });
                 });
+            // printer pass
             PB.registerPipelineParsingCallback(
                 [&](StringRef Name,
                     FunctionPassManager &FPM,
@@ -266,6 +293,19 @@ PassPluginLibraryInfo getSeminalInputPluginInfo() {
                       formatv("print<{0}>", PassArg);
                   if(!Name.compare(PrinterPassElement)) {
                     FPM.addPass(SeminalInputPrinter(llvm::outs()));
+                    return true;
+                  }
+
+                  return false;
+                });
+            // graph pass
+            PB.registerPipelineParsingCallback(
+                [&](StringRef Name,
+                    FunctionPassManager &FPM,
+                    ArrayRef<PassBuilder::PipelineElement>) {
+                  std::string GraphPassElement = formatv("graph<{0}>", PassArg);
+                  if(!Name.compare(GraphPassElement)) {
+                    FPM.addPass(SeminalInputGraph(llvm::outs()));
                     return true;
                   }
 

@@ -34,6 +34,18 @@ static constexpr char PluginName[] = "FindKeyPoints";
 // FindKeyPoints implementation
 //------------------------------------------------------------------------------
 
+bool usedByBranch(Instruction &I) {
+  for(User *U: I.users()) {
+    if(auto uI = dyn_cast<Instruction>(U)) {
+      if(isa<BranchInst>(uI)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 struct KeyPointVisitor : public InstVisitor<KeyPointVisitor> {
   FindKeyPoints::Result res{};
 
@@ -68,9 +80,15 @@ struct KeyPointVisitor : public InstVisitor<KeyPointVisitor> {
   }
   void visitICmpInst(ICmpInst &I) {
     // LLVM_DEBUG(dbgs() << "ICmpInst(" << utils::lineNum(I) << ")\n";);
+     if (usedByBranch(I)) {
+      res.keyPoints.insert(&I);
+    }
   }
   void visitFCmpInst(FCmpInst &I) {
     // LLVM_DEBUG(dbgs() << "FCmpInst(" << utils::lineNum(I) << ")\n";);
+     if (usedByBranch(I)) {
+      res.keyPoints.insert(&I);
+    }
   }
 
   void visitCallInst(CallInst &I) {

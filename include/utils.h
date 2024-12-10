@@ -2,6 +2,7 @@
 #define __412PROJ_UTILS_H
 
 #include "llvm/IR/Instruction.h"
+#include "llvm/IR/InstrTypes.h"
 #include "llvm/Pass.h"
 
 // #ifndef DEBUG_TYPE
@@ -31,6 +32,8 @@ inline void printInstructionSrc(llvm::raw_ostream &OutS, llvm::Instruction &I) {
 }
 
 int lineNum(llvm::Instruction &I);
+
+int getArgPosInCall(const llvm::CallBase *callBase, const llvm::Value *arg);
 
 } // namespace utils
 
