@@ -4,21 +4,10 @@
 
 This is an out-of-tree pass organized as in [banach-space/llvm-tutor](https://github.com/banach-space/llvm-tutor).
 
+The two large examples, `examples/tic_tac_toe.c` and `examples/naval_battle.c`, are from [TheAlgorithms/C](https://github.com/TheAlgorithms/C).`examples/fopen_example.c` is adapted from [CPPReference](https://en.cppreference.com/w/c/io/fopen). The rest are my own or modified from the project description.
+
+
 **LLVM / Clang Version:** 19.1.2
-
-### Sample Run
-
-```c
-todo input
-```
-
-```sh
-todo cmd
-```
-
-```
-todo out
-```
 
 
 ## Building
