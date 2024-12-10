@@ -43,6 +43,7 @@ FindIOVals::Result inputValues(CallInst &I, StringRef name) {
   std::set<Value *> vals{};
   std::vector<IOValMetadata> valsMetadata{};
   bool isFile = false;
+  StringRef retvalName;
 
   // Get line number
   auto lineNum = utils::lineNum(I);
@@ -92,9 +93,11 @@ FindIOVals::Result inputValues(CallInst &I, StringRef name) {
         .inst = &I,
         .funcName = name.str(),
         .isFile = true,
-        .comment = "File descriptor",
+        .comment = utils::getLhsName(I),
         .lineNum = lineNum,
     });
+
+    retvalName = retval->getName();
 
   } else if(name == "fgetc" || name == "getc" || name == "getc_unlocked" ||
             name == "getchar" || name == "getchar_unlocked" || name == "getw" ||
@@ -107,15 +110,27 @@ FindIOVals::Result inputValues(CallInst &I, StringRef name) {
   }
 
   // Add store instructions that use the return value
-  for(auto U: I.users()) {
+  // errs() << "Users of : " << I.getName() << "\n";
+  for(auto U: dyn_cast<Value>(&I)->users()) {
+    // errs() << "User: " << U->getName() << "(" <<
+    // dyn_cast<Instruction>(U)->getOpcodeName() << ")\n";
     if(auto SI = dyn_cast<StoreInst>(U)) {
+      // errs() << "retvalName: " << retvalName << "\n";
       vals.insert(SI->getOperand(1));
-      valsMetadata.push_back(IOValMetadata{.val = SI->getOperand(1),
-                                           .inst = SI,
-                                           .funcName = name.str(),
-                                           .isFile = isFile,
-                                           .lineNum = lineNum,
-                                           });
+      auto meta = IOValMetadata{
+          .val = SI->getOperand(1),
+          .inst = SI,
+          .funcName = name.str(),
+          .isFile = isFile,
+          .lineNum = lineNum,
+      };
+
+      // If is a file descriptor, add comment to save name
+      if(isFile) {
+        meta.comment = retvalName.str();
+      }
+
+      valsMetadata.push_back(meta);
     }
   }
 

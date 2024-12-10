@@ -33,6 +33,8 @@ inline void printInstructionSrc(llvm::raw_ostream &OutS, llvm::Instruction &I) {
 
 int lineNum(llvm::Instruction &I);
 
+std::string getLhsName(llvm::Instruction &I);
+
 int getArgPosInCall(const llvm::CallBase *callBase, const llvm::Value *arg);
 
 } // namespace utils

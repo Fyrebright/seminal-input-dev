@@ -9,10 +9,12 @@
 #include "llvm/IR/Value.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Support/FormatVariadic.h"
+#include "llvm/Support/raw_ostream.h"
 
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <string>
 
 // Forward declarations
 namespace llvm {
@@ -40,14 +42,7 @@ int lineNum(Instruction &I) {
     return -2;
 }
 
-/**
- * @brief Returns a string with the source code line corresponding to the given
- * instruction.
- *
- * @param I The instruction for which to retrieve the source code line.
- * @return std::string with line number, source code line, and instruction type.
- */
-std::string getInstructionSrc(Instruction &I) {
+std::string _raw_instruction(Instruction &I) {
   if(const DILocation *Loc = I.getStableDebugLoc()) {
     unsigned lineNumber = Loc->getLine();
     StringRef File = Loc->getFilename();
@@ -66,27 +61,50 @@ std::string getInstructionSrc(Instruction &I) {
       std::string line;
       getline(srcFile, line);
 
-      // construct a string with the instruction name and the source code line
-      std::string instructionSrc =
-          formatv("{0} : {1} ({2})", lineNumber, line, I.getOpcodeName());
-
       srcFile.close();
 
-      return instructionSrc;
+      return line;
     } catch(const std::filesystem::filesystem_error &e) {
       return "Error accessing file: " + std::string(e.what());
+    }
+  }
+  return nullptr;
+}
+
+std::string getLhsName(Instruction &I){
+  // Get the name of the variable instruction is assigned to
+  auto line = _raw_instruction(I);
+
+  line = line.substr(0, line.find("="));
+  return line.substr(line.find_last_of("*")+1, line.size());
+}
+
+/**
+ * @brief Returns a string with the source code line corresponding to the given
+ * instruction.
+ *
+ * @param I The instruction for which to retrieve the source code line.
+ * @return std::string with line number, source code line, and instruction type.
+ */
+std::string getInstructionSrc(Instruction &I) {
+  if(const DILocation *Loc = I.getStableDebugLoc()) {
+    unsigned lineNumber = Loc->getLine();
+    // bool ImplicitCode = Loc->isImplicitCode();
+
+    std::string line = _raw_instruction(I);
+    if(!line.empty()) {
+      return formatv("{0} : {1} ({2})", lineNumber, line, I.getOpcodeName());
     }
   }
   return formatv(
       "{0} : {1} ({2})", "No debug info", I.getName(), I.getOpcodeName());
 }
 
-int getArgPosInCall(const CallBase *callBase, const Value *arg)
-{
-    assert(callBase->hasArgument(arg) && "callInst does not have argument arg?");
-    auto it = std::find(callBase->arg_begin(), callBase->arg_end(), arg);
-    assert(it != callBase->arg_end() && "Didn't find argument?");
-    return std::distance(callBase->arg_begin(), it);
+int getArgPosInCall(const CallBase *callBase, const Value *arg) {
+  assert(callBase->hasArgument(arg) && "callInst does not have argument arg?");
+  auto it = std::find(callBase->arg_begin(), callBase->arg_end(), arg);
+  assert(it != callBase->arg_end() && "Didn't find argument?");
+  return std::distance(callBase->arg_begin(), it);
 }
 
 // sed -E 's/(\w+Inst)/void visit$1($1 &I) {errs() << "$1(" << utils::lineNum(I)
