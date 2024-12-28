@@ -1,6 +1,11 @@
-# CSC412 Course Project
+# Seminal Input Detection with LLVM
 
 ## Summary
+
+_Originally a project for a Compiler Construction Course:_ Static analysis tool implemented as an LLVM analysis pass in C++ for identifying _seminal input values_ (values derived from user input that affect the amount time it takes to execute a program) in C source files.
+
+Seminal Behaviors described in:
+>Yunlian Jiang, Eddy Z Zhang, Kai Tian, Feng Mao, Malcom Gethers, Xipeng Shen, and Yaoqing Gao. 2010. Exploiting statistical correlations for proactive prediction of program behaviors. Association for Computing Machinery, Toronto, Ontario, Canada, 248–256. DOI:https://doi.org/10.1145/1772954.1772989
 
 This is an out-of-tree pass organized as in [banach-space/llvm-tutor](https://github.com/banach-space/llvm-tutor).
 
